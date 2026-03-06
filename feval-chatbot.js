@@ -1,0 +1,764 @@
+/*!
+ * FEVAL Chatbot Widget v1.0.0
+ * Asistente virtual IA para formacionfeval.com
+ *
+ * INSTRUCCIONES DE INSTALACIÓN:
+ * ==============================
+ * 1. Sube feval-chatbot.js a tu servidor
+ * 2. Añade en el <head> o antes de </body> de cada página:
+ *
+ *    <script>window.FEVAL_CHATBOT_API_KEY = "sk-ant-TU_API_KEY_AQUI";</script>
+ *    <script src="/ruta/a/feval-chatbot.js"></script>
+ *
+ * 3. El widget aparecerá automáticamente en la esquina inferior derecha.
+ *
+ * CONFIGURACIÓN OPCIONAL:
+ *    window.FEVAL_CHATBOT_API_KEY  — Tu API key de Anthropic (obligatorio)
+ *
+ * SOPORTE: formacion@feval.com
+ */
+
+(function () {
+  'use strict';
+
+  // ─── Configuración ────────────────────────────────────────────────────────
+  var API_KEY = (typeof window !== 'undefined' && window.FEVAL_CHATBOT_API_KEY) || '';
+  var API_URL = 'https://api.anthropic.com/v1/messages';
+  var MODEL   = 'claude-sonnet-4-20250514';
+  var MAX_HISTORY = 10; // pares de mensajes a mantener en contexto
+  var REQUEST_TIMEOUT_MS = 30000;
+
+  var SYSTEM_PROMPT = [
+    'Eres el asistente virtual oficial de FEVAL Formación, la plataforma de formación TIC gratuita de la Institución Ferial de Extremadura. Tu nombre es "Asistente FEVAL".',
+    'Tu misión es ayudar a los usuarios a:',
+    '- Informarse sobre los cursos disponibles en el Plan Formativo 2026',
+    '- Entender el proceso de pre-inscripción y baremación',
+    '- Conocer los requisitos para acceder a la formación',
+    '- Resolver dudas sobre las 9 áreas temáticas disponibles',
+    '- Obtener información de contacto y orientación',
+    '',
+    'INFORMACIÓN CLAVE QUE CONOCES:',
+    '- FEVAL ofrece 70 cursos gratuitos TIC en 2026',
+    '- Modalidad: Online con clases en directo',
+    '- Dirigido a: empleados y desempleados de Extremadura',
+    '- 9 áreas temáticas: Agricultura 4.0 y Drónica, Desarrollo de Videojuegos, Desarrollo de Software, Sistemas y Soporte, Ciberseguridad y Redes, Gestión de Proyectos, Big Data IA y Cloud, Analítica de Datos y BI, Diseño Gráfico y Marketing Digital',
+    '- Pre-inscripciones abiertas hasta inicio del curso o hasta 75 inscritos',
+    '- Proceso de baremación para selección de alumnos',
+    '- Contacto: formacion@feval.com | 924 82 91 00 | 618 457 790',
+    '- Ubicación: Paseo de FEVAL s/n, Don Benito, Badajoz (06400)',
+    '- Financiado por: Junta de Extremadura, Diputación de Badajoz, Ayuntamiento de Don Benito',
+    '- Horario de atención: Lunes a Viernes',
+    '- Baremaciones en: https://formacionfeval.com/index.php/baremaciones',
+    '- Ayuda en: https://formacionfeval.com/index.php/ayuda',
+    '- Contacto web: https://formacionfeval.com/index.php/contacto',
+    '',
+    'REGLAS DE COMPORTAMIENTO:',
+    '- Responde siempre en español',
+    '- Sé amable, profesional y conciso',
+    '- Si no tienes información específica sobre un curso concreto, indica al usuario que visite la web o contacte directamente',
+    '- Para inscripciones, dirige siempre a https://formacionfeval.com/index.php/cursos-feval',
+    '- Para dudas complejas, sugiere contactar por email o teléfono',
+    '- Nunca inventes información sobre cursos específicos que no conoces con certeza',
+    '- Cuando menciones links, usa las URLs reales de formacionfeval.com'
+  ].join('\n');
+
+  var WELCOME_MESSAGE = '¡Hola! 👋 Soy el asistente virtual de FEVAL. Puedo ayudarte con información sobre nuestros 70 cursos TIC gratuitos del Plan Formativo 2026. ¿En qué puedo ayudarte?';
+
+  var QUICK_REPLIES = [
+    { label: '📚 Ver cursos disponibles',  text: '¿Qué cursos están disponibles en el Plan Formativo 2026?' },
+    { label: '📝 ¿Cómo inscribirse?',      text: '¿Cómo puedo inscribirme en un curso de FEVAL?' },
+    { label: '🎓 Áreas de formación',      text: '¿Cuáles son las áreas temáticas de formación disponibles?' },
+    { label: '📞 Contactar con FEVAL',     text: '¿Cómo puedo contactar con FEVAL Formación?' }
+  ];
+
+  // ─── Estado ───────────────────────────────────────────────────────────────
+  var isOpen           = false;
+  var isLoading        = false;
+  var conversationHistory = [];
+  var welcomeShown     = false;
+  var notificationDot  = null;
+
+  // ─── CSS ──────────────────────────────────────────────────────────────────
+  var CSS = [
+    /* Reset & Base */
+    '#feval-chatbot-root *{box-sizing:border-box;margin:0;padding:0;}',
+
+    /* Floating button */
+    '#feval-chat-btn{',
+      'position:fixed;bottom:24px;right:24px;z-index:9999;',
+      'width:60px;height:60px;border-radius:50%;',
+      'background:linear-gradient(135deg,#1a56a0 0%,#0d3a72 100%);',
+      'border:none;cursor:pointer;',
+      'box-shadow:0 4px 20px rgba(26,86,160,0.45);',
+      'display:flex;align-items:center;justify-content:center;',
+      'transition:transform 0.2s ease,box-shadow 0.2s ease;',
+      'outline:none;',
+    '}',
+    '#feval-chat-btn:hover{transform:scale(1.08);box-shadow:0 6px 26px rgba(26,86,160,0.55);}',
+    '#feval-chat-btn:focus-visible{outline:3px solid #60a5fa;outline-offset:3px;}',
+    '#feval-chat-btn svg{width:28px;height:28px;fill:#fff;transition:opacity 0.2s;}',
+    '#feval-chat-btn.open svg.icon-chat{display:none;}',
+    '#feval-chat-btn.open svg.icon-close{display:block;}',
+    '#feval-chat-btn svg.icon-close{display:none;}',
+
+    /* Notification badge */
+    '#feval-notif-badge{',
+      'position:absolute;top:2px;right:2px;',
+      'width:14px;height:14px;border-radius:50%;',
+      'background:#f97316;border:2px solid #fff;',
+      'animation:feval-pulse 1.8s infinite;',
+    '}',
+    '@keyframes feval-pulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.3);opacity:0.7;}}',
+
+    /* Tooltip */
+    '#feval-chat-btn::after{',
+      'content:"¿Necesitas ayuda?";',
+      'position:absolute;right:70px;top:50%;transform:translateY(-50%);',
+      'background:#1a56a0;color:#fff;',
+      'padding:6px 12px;border-radius:8px;',
+      'font-size:13px;font-family:system-ui,-apple-system,sans-serif;',
+      'white-space:nowrap;pointer-events:none;',
+      'opacity:0;transition:opacity 0.2s;',
+      'box-shadow:0 2px 8px rgba(0,0,0,0.2);',
+    '}',
+    '#feval-chat-btn::before{',
+      'content:"";',
+      'position:absolute;right:66px;top:50%;transform:translateY(-50%);',
+      'border:6px solid transparent;border-left-color:#1a56a0;',
+      'opacity:0;transition:opacity 0.2s;pointer-events:none;',
+    '}',
+    '#feval-chat-btn:not(.open):hover::after,#feval-chat-btn:not(.open):hover::before{opacity:1;}',
+
+    /* Chat window */
+    '#feval-chat-window{',
+      'position:fixed;bottom:96px;right:24px;z-index:9998;',
+      'width:380px;height:520px;',
+      'background:#fff;border-radius:16px;',
+      'box-shadow:0 8px 40px rgba(0,0,0,0.18);',
+      'display:flex;flex-direction:column;overflow:hidden;',
+      'opacity:0;transform:translateY(20px) scale(0.96);pointer-events:none;',
+      'transition:opacity 0.25s ease,transform 0.25s ease;',
+      'font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;',
+    '}',
+    '#feval-chat-window.open{opacity:1;transform:translateY(0) scale(1);pointer-events:all;}',
+
+    /* Header */
+    '#feval-chat-header{',
+      'background:linear-gradient(135deg,#1a56a0 0%,#0d3a72 100%);',
+      'padding:14px 16px;',
+      'display:flex;align-items:center;gap:12px;',
+      'flex-shrink:0;',
+    '}',
+    '#feval-chat-avatar{',
+      'width:40px;height:40px;border-radius:50%;',
+      'background:rgba(255,255,255,0.15);',
+      'display:flex;align-items:center;justify-content:center;',
+      'flex-shrink:0;',
+    '}',
+    '#feval-chat-avatar svg{width:22px;height:22px;fill:#fff;}',
+    '#feval-chat-header-info{flex:1;min-width:0;}',
+    '#feval-chat-title{color:#fff;font-weight:700;font-size:15px;line-height:1.2;}',
+    '#feval-chat-subtitle{color:rgba(255,255,255,0.8);font-size:11.5px;margin-top:2px;}',
+    '#feval-chat-status{display:flex;align-items:center;gap:5px;margin-top:3px;}',
+    '#feval-status-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:feval-blink 2s infinite;}',
+    '@keyframes feval-blink{0%,100%{opacity:1;}50%{opacity:0.4;}}',
+    '#feval-status-text{color:rgba(255,255,255,0.75);font-size:11px;}',
+    '#feval-chat-actions{display:flex;gap:6px;flex-shrink:0;}',
+    '.feval-header-btn{',
+      'background:rgba(255,255,255,0.15);border:none;',
+      'width:30px;height:30px;border-radius:8px;',
+      'cursor:pointer;display:flex;align-items:center;justify-content:center;',
+      'transition:background 0.2s;color:#fff;',
+    '}',
+    '.feval-header-btn:hover{background:rgba(255,255,255,0.25);}',
+    '.feval-header-btn:focus-visible{outline:2px solid rgba(255,255,255,0.6);outline-offset:2px;}',
+    '.feval-header-btn svg{width:15px;height:15px;fill:currentColor;}',
+
+    /* Messages area */
+    '#feval-messages{',
+      'flex:1;overflow-y:auto;padding:16px 14px;',
+      'display:flex;flex-direction:column;gap:12px;',
+      'scroll-behavior:smooth;',
+    '}',
+    '#feval-messages::-webkit-scrollbar{width:4px;}',
+    '#feval-messages::-webkit-scrollbar-track{background:transparent;}',
+    '#feval-messages::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px;}',
+
+    /* Message bubbles */
+    '.feval-msg{display:flex;gap:8px;align-items:flex-end;animation:feval-msgIn 0.2s ease;}',
+    '@keyframes feval-msgIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}',
+    '.feval-msg.user{flex-direction:row-reverse;}',
+    '.feval-msg-avatar{',
+      'width:28px;height:28px;border-radius:50%;flex-shrink:0;',
+      'background:linear-gradient(135deg,#1a56a0,#0d3a72);',
+      'display:flex;align-items:center;justify-content:center;',
+    '}',
+    '.feval-msg-avatar svg{width:15px;height:15px;fill:#fff;}',
+    '.feval-msg-body{max-width:78%;display:flex;flex-direction:column;gap:3px;}',
+    '.feval-msg.user .feval-msg-body{align-items:flex-end;}',
+    '.feval-msg-bubble{',
+      'padding:10px 13px;border-radius:16px;',
+      'font-size:13.5px;line-height:1.5;word-break:break-word;',
+    '}',
+    '.feval-msg.assistant .feval-msg-bubble{',
+      'background:#f1f5f9;color:#1e293b;',
+      'border-bottom-left-radius:4px;',
+    '}',
+    '.feval-msg.user .feval-msg-bubble{',
+      'background:linear-gradient(135deg,#1a56a0,#1e64b8);',
+      'color:#fff;border-bottom-right-radius:4px;',
+    '}',
+    '.feval-msg-time{font-size:10.5px;color:#94a3b8;padding:0 4px;}',
+    '.feval-msg-bubble a{color:#1a56a0;text-decoration:underline;}',
+    '.feval-msg.user .feval-msg-bubble a{color:#bfdbfe;}',
+
+    /* Quick replies */
+    '#feval-quick-replies{',
+      'display:flex;flex-wrap:wrap;gap:7px;padding:0 14px 4px;',
+    '}',
+    '.feval-qr-btn{',
+      'background:#f0f6ff;border:1.5px solid #bcd4f5;',
+      'color:#1a56a0;padding:7px 12px;border-radius:20px;',
+      'font-size:12.5px;cursor:pointer;',
+      'transition:background 0.15s,border-color 0.15s,transform 0.1s;',
+      'font-family:inherit;',
+    '}',
+    '.feval-qr-btn:hover{background:#dbeafe;border-color:#93c5fd;transform:translateY(-1px);}',
+    '.feval-qr-btn:active{transform:translateY(0);}',
+    '.feval-qr-btn:focus-visible{outline:2px solid #1a56a0;outline-offset:2px;}',
+
+    /* Typing indicator */
+    '#feval-typing{',
+      'display:none;align-items:flex-end;gap:8px;',
+      'padding:0 14px 4px;',
+    '}',
+    '#feval-typing.show{display:flex;}',
+    '.feval-typing-bubble{',
+      'background:#f1f5f9;padding:10px 14px;border-radius:16px;border-bottom-left-radius:4px;',
+      'display:flex;gap:5px;align-items:center;',
+    '}',
+    '.feval-typing-dot{',
+      'width:7px;height:7px;border-radius:50%;background:#94a3b8;',
+      'animation:feval-bounce 1.2s infinite;',
+    '}',
+    '.feval-typing-dot:nth-child(2){animation-delay:0.2s;}',
+    '.feval-typing-dot:nth-child(3){animation-delay:0.4s;}',
+    '@keyframes feval-bounce{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-5px);}}',
+
+    /* Input area */
+    '#feval-input-area{',
+      'padding:12px 14px;border-top:1px solid #e2e8f0;',
+      'display:flex;gap:9px;align-items:flex-end;flex-shrink:0;',
+      'background:#fff;',
+    '}',
+    '#feval-textarea{',
+      'flex:1;resize:none;border:1.5px solid #e2e8f0;',
+      'border-radius:12px;padding:10px 13px;',
+      'font-family:inherit;font-size:13.5px;line-height:1.5;',
+      'color:#1e293b;outline:none;',
+      'transition:border-color 0.2s;',
+      'max-height:100px;overflow-y:auto;',
+    '}',
+    '#feval-textarea:focus{border-color:#1a56a0;}',
+    '#feval-textarea:disabled{background:#f8fafc;cursor:not-allowed;}',
+    '#feval-textarea::placeholder{color:#94a3b8;}',
+    '#feval-send-btn{',
+      'width:40px;height:40px;border-radius:50%;border:none;',
+      'background:linear-gradient(135deg,#1a56a0,#0d3a72);',
+      'color:#fff;cursor:pointer;',
+      'display:flex;align-items:center;justify-content:center;flex-shrink:0;',
+      'transition:opacity 0.2s,transform 0.15s,background 0.2s;',
+      'opacity:0.45;',
+    '}',
+    '#feval-send-btn.active{opacity:1;}',
+    '#feval-send-btn.active:hover{transform:scale(1.08);}',
+    '#feval-send-btn:disabled{cursor:not-allowed;}',
+    '#feval-send-btn svg{width:18px;height:18px;fill:#fff;}',
+
+    /* Error message */
+    '.feval-error-msg{',
+      'background:#fef2f2;border:1px solid #fecaca;',
+      'color:#991b1b;padding:10px 13px;border-radius:12px;',
+      'font-size:12.5px;display:flex;align-items:flex-start;gap:8px;',
+    '}',
+    '.feval-error-msg svg{width:16px;height:16px;fill:#ef4444;flex-shrink:0;margin-top:1px;}',
+    '.feval-retry-link{color:#1a56a0;cursor:pointer;text-decoration:underline;display:inline-block;margin-top:4px;}',
+
+    /* Responsive – móvil */
+    '@media(max-width:479px){',
+      '#feval-chat-window{',
+        'width:100%;height:100%;',
+        'bottom:0;right:0;',
+        'border-radius:0;',
+      '}',
+      '#feval-chat-btn{bottom:16px;right:16px;}',
+    '}',
+  ].join('');
+
+  // ─── SVGs ─────────────────────────────────────────────────────────────────
+  var SVG_CHAT = '<svg class="icon-chat" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4C2.9 2 2 2.9 2 4v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 12H6l-2 2V4h16v10z"/></svg>';
+  var SVG_CLOSE_BTN = '<svg class="icon-close" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+  var SVG_CLOSE_SM = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+  var SVG_TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+  var SVG_SEND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
+  var SVG_BOT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 9V7c0-1.1-.9-2-2-2h-3V3.5a1.5 1.5 0 10-3 0V5H9C7.9 5 7 5.9 7 7v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v3c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-3c1.66 0 3-1.34 3-3s-1.34-3-3-3zm-2 10H8v-8h10v8zm-8-5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>';
+  var SVG_ERROR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function formatText(text) {
+    // Simple markdown-lite: bold, links, line breaks
+    return escapeHtml(text)
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function formatTime(date) {
+    return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function scrollBottom() {
+    var el = document.getElementById('feval-messages');
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  // ─── Render helpers ───────────────────────────────────────────────────────
+  function renderMessage(role, content, isError) {
+    var container = document.getElementById('feval-messages');
+    if (!container) return;
+
+    // Hide quick replies after first user message
+    if (role === 'user') {
+      var qr = document.getElementById('feval-quick-replies');
+      if (qr) qr.style.display = 'none';
+    }
+
+    var div = document.createElement('div');
+    div.className = 'feval-msg ' + (role === 'user' ? 'user' : 'assistant');
+
+    var avatarHtml = role === 'assistant'
+      ? '<div class="feval-msg-avatar" aria-hidden="true">' + SVG_BOT + '</div>'
+      : '';
+
+    var bubbleHtml = isError
+      ? '<div class="feval-error-msg">' + SVG_ERROR + '<div>' + formatText(content) + '</div></div>'
+      : '<div class="feval-msg-bubble">' + formatText(content) + '</div>';
+
+    div.innerHTML = avatarHtml +
+      '<div class="feval-msg-body">' +
+        bubbleHtml +
+        '<div class="feval-msg-time" aria-label="Enviado a las ' + formatTime(new Date()) + '">' +
+          formatTime(new Date()) +
+        '</div>' +
+      '</div>';
+
+    container.appendChild(div);
+    scrollBottom();
+    return div;
+  }
+
+  function showTyping() {
+    var el = document.getElementById('feval-typing');
+    if (el) el.classList.add('show');
+    scrollBottom();
+  }
+
+  function hideTyping() {
+    var el = document.getElementById('feval-typing');
+    if (el) el.classList.remove('show');
+  }
+
+  function setInputDisabled(val) {
+    var ta = document.getElementById('feval-textarea');
+    var btn = document.getElementById('feval-send-btn');
+    if (ta) ta.disabled = val;
+    if (btn) btn.disabled = val;
+    if (!val && ta) updateSendBtn(ta.value);
+  }
+
+  function updateSendBtn(value) {
+    var btn = document.getElementById('feval-send-btn');
+    if (!btn) return;
+    if (value && value.trim()) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  }
+
+  // ─── API call ─────────────────────────────────────────────────────────────
+  function callAPI(userText, retryFn) {
+    if (!API_KEY) {
+      renderMessage('assistant',
+        'El chat no está disponible en este momento. Para asistencia, contacta con nosotros en formacion@feval.com o llama al 924 82 91 00.',
+        true
+      );
+      return;
+    }
+
+    isLoading = true;
+    setInputDisabled(true);
+    showTyping();
+
+    // Add to history
+    conversationHistory.push({ role: 'user', content: userText });
+
+    // Trim history: keep last MAX_HISTORY messages (user+assistant pairs)
+    while (conversationHistory.length > MAX_HISTORY * 2) {
+      conversationHistory.splice(0, 2);
+    }
+
+    var controller = null;
+    var timeoutId = null;
+
+    try {
+      controller = new AbortController();
+      timeoutId = setTimeout(function () {
+        controller.abort();
+      }, REQUEST_TIMEOUT_MS);
+
+      fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 1000,
+          system: SYSTEM_PROMPT,
+          messages: conversationHistory
+        }),
+        signal: controller.signal
+      })
+      .then(function (response) {
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+          return response.json().catch(function () { return {}; }).then(function (errBody) {
+            throw new Error('API_ERROR:' + response.status + ':' + (errBody && errBody.error && errBody.error.message ? errBody.error.message : 'Error desconocido'));
+          });
+        }
+        return response.json();
+      })
+      .then(function (data) {
+        hideTyping();
+        isLoading = false;
+        setInputDisabled(false);
+
+        var assistantText = '';
+        if (data.content && data.content.length > 0) {
+          for (var i = 0; i < data.content.length; i++) {
+            if (data.content[i].type === 'text') {
+              assistantText = data.content[i].text;
+              break;
+            }
+          }
+        }
+
+        if (!assistantText) {
+          assistantText = 'Lo siento, no pude procesar tu consulta. Por favor, inténtalo de nuevo o contacta con nosotros en formacion@feval.com.';
+        }
+
+        conversationHistory.push({ role: 'assistant', content: assistantText });
+        renderMessage('assistant', assistantText);
+
+        var ta = document.getElementById('feval-textarea');
+        if (ta) ta.focus();
+      })
+      .catch(function (err) {
+        clearTimeout(timeoutId);
+        hideTyping();
+        isLoading = false;
+        setInputDisabled(false);
+
+        // Remove the user message we added if the call failed
+        if (conversationHistory.length > 0 &&
+            conversationHistory[conversationHistory.length - 1].role === 'user') {
+          conversationHistory.pop();
+        }
+
+        var msg;
+        if (err.name === 'AbortError') {
+          msg = 'La solicitud tardó demasiado (más de 30 segundos). ';
+        } else if (err.message && err.message.indexOf('API_ERROR:') === 0) {
+          var parts = err.message.split(':');
+          var status = parseInt(parts[1]);
+          if (status === 401) {
+            msg = 'La clave de API no es válida. ';
+          } else if (status === 429) {
+            msg = 'Demasiadas solicitudes. Espera un momento y vuelve a intentarlo. ';
+          } else {
+            msg = 'Error al conectar con el asistente (' + status + '). ';
+          }
+        } else {
+          msg = 'No se pudo conectar con el asistente. ';
+        }
+
+        var errorDiv = renderMessage('assistant', msg, true);
+        if (errorDiv && retryFn) {
+          var retryLink = document.createElement('span');
+          retryLink.className = 'feval-retry-link';
+          retryLink.textContent = 'Reintentar';
+          retryLink.setAttribute('role', 'button');
+          retryLink.setAttribute('tabindex', '0');
+          retryLink.addEventListener('click', function () {
+            errorDiv.remove();
+            retryFn();
+          });
+          retryLink.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); retryLink.click(); }
+          });
+          var bubble = errorDiv.querySelector('.feval-error-msg div');
+          if (bubble) bubble.appendChild(retryLink);
+        }
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      hideTyping();
+      isLoading = false;
+      setInputDisabled(false);
+      renderMessage('assistant', 'Error inesperado. Contacta con formacion@feval.com.', true);
+    }
+  }
+
+  // ─── Send message ─────────────────────────────────────────────────────────
+  function sendMessage(text) {
+    if (!text || !text.trim() || isLoading) return;
+    var trimmed = text.trim();
+    renderMessage('user', trimmed);
+
+    var ta = document.getElementById('feval-textarea');
+    if (ta) {
+      ta.value = '';
+      ta.style.height = 'auto';
+      updateSendBtn('');
+    }
+
+    callAPI(trimmed, function () { sendMessage(trimmed); });
+  }
+
+  // ─── Clear conversation ───────────────────────────────────────────────────
+  function clearConversation() {
+    conversationHistory = [];
+    var container = document.getElementById('feval-messages');
+    if (container) container.innerHTML = '';
+    var qr = document.getElementById('feval-quick-replies');
+    if (qr) qr.style.display = '';
+    // Re-show welcome
+    renderMessage('assistant', WELCOME_MESSAGE);
+  }
+
+  // ─── Toggle widget ────────────────────────────────────────────────────────
+  function openChat() {
+    isOpen = true;
+    var btn = document.getElementById('feval-chat-btn');
+    var win = document.getElementById('feval-chat-window');
+    var badge = document.getElementById('feval-notif-badge');
+
+    if (btn) btn.classList.add('open');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    if (win) win.classList.add('open');
+    if (badge) badge.style.display = 'none';
+
+    if (!welcomeShown) {
+      welcomeShown = true;
+      setTimeout(function () {
+        renderMessage('assistant', WELCOME_MESSAGE);
+        var ta = document.getElementById('feval-textarea');
+        if (ta) ta.focus();
+      }, 80);
+    } else {
+      setTimeout(function () {
+        var ta = document.getElementById('feval-textarea');
+        if (ta) ta.focus();
+        scrollBottom();
+      }, 80);
+    }
+  }
+
+  function closeChat() {
+    isOpen = false;
+    var btn = document.getElementById('feval-chat-btn');
+    var win = document.getElementById('feval-chat-window');
+    if (btn) btn.classList.remove('open');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    if (win) win.classList.remove('open');
+    if (btn) btn.focus();
+  }
+
+  function toggleChat() {
+    if (isOpen) closeChat();
+    else openChat();
+  }
+
+  // ─── Build DOM ────────────────────────────────────────────────────────────
+  function injectStyles() {
+    var style = document.createElement('style');
+    style.id = 'feval-chatbot-styles';
+    style.textContent = CSS;
+    document.head.appendChild(style);
+  }
+
+  function buildWidget() {
+    // Root wrapper (keeps everything scoped)
+    var root = document.createElement('div');
+    root.id = 'feval-chatbot-root';
+    root.setAttribute('aria-live', 'polite');
+
+    // ── Floating button ──
+    var btn = document.createElement('button');
+    btn.id = 'feval-chat-btn';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Abrir chat de asistencia FEVAL');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-haspopup', 'dialog');
+    btn.innerHTML = SVG_CHAT + SVG_CLOSE_BTN + '<div id="feval-notif-badge" aria-hidden="true"></div>';
+    btn.addEventListener('click', toggleChat);
+    btn.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && isOpen) closeChat();
+    });
+
+    // ── Chat window ──
+    var win = document.createElement('div');
+    win.id = 'feval-chat-window';
+    win.setAttribute('role', 'dialog');
+    win.setAttribute('aria-label', 'Chat de asistencia FEVAL');
+    win.setAttribute('aria-modal', 'true');
+
+    // Header
+    win.innerHTML = [
+      '<div id="feval-chat-header">',
+        '<div id="feval-chat-avatar" aria-hidden="true">' + SVG_BOT + '</div>',
+        '<div id="feval-chat-header-info">',
+          '<div id="feval-chat-title">Asistente FEVAL</div>',
+          '<div id="feval-chat-subtitle">Formación TIC gratuita · Online</div>',
+          '<div id="feval-chat-status">',
+            '<div id="feval-status-dot" aria-hidden="true"></div>',
+            '<span id="feval-status-text">En línea</span>',
+          '</div>',
+        '</div>',
+        '<div id="feval-chat-actions">',
+          '<button class="feval-header-btn" id="feval-clear-btn" type="button" ',
+            'aria-label="Limpiar conversación" title="Limpiar conversación">',
+            SVG_TRASH,
+          '</button>',
+          '<button class="feval-header-btn" id="feval-close-btn" type="button" ',
+            'aria-label="Cerrar chat" title="Cerrar chat">',
+            SVG_CLOSE_SM,
+          '</button>',
+        '</div>',
+      '</div>',
+
+      // Messages
+      '<div id="feval-messages" role="log" aria-label="Conversación con el asistente FEVAL" aria-live="polite"></div>',
+
+      // Quick replies
+      '<div id="feval-quick-replies" aria-label="Preguntas rápidas"></div>',
+
+      // Typing indicator
+      '<div id="feval-typing" role="status" aria-label="El asistente está escribiendo">',
+        '<div class="feval-msg-avatar" aria-hidden="true">' + SVG_BOT + '</div>',
+        '<div class="feval-typing-bubble" aria-hidden="true">',
+          '<div class="feval-typing-dot"></div>',
+          '<div class="feval-typing-dot"></div>',
+          '<div class="feval-typing-dot"></div>',
+        '</div>',
+      '</div>',
+
+      // Input
+      '<div id="feval-input-area">',
+        '<textarea id="feval-textarea" rows="1" ',
+          'placeholder="Escribe tu pregunta..." ',
+          'aria-label="Escribe tu mensaje" ',
+          'maxlength="2000"></textarea>',
+        '<button id="feval-send-btn" type="button" aria-label="Enviar mensaje" disabled>',
+          SVG_SEND,
+        '</button>',
+      '</div>',
+    ].join('');
+
+    root.appendChild(btn);
+    root.appendChild(win);
+    document.body.appendChild(root);
+
+    // ── Quick reply chips ──
+    var qrContainer = document.getElementById('feval-quick-replies');
+    QUICK_REPLIES.forEach(function (qr) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'feval-qr-btn';
+      chip.textContent = qr.label;
+      chip.setAttribute('aria-label', qr.label);
+      chip.addEventListener('click', function () {
+        sendMessage(qr.text);
+      });
+      qrContainer.appendChild(chip);
+    });
+
+    // ── Input events ──
+    var textarea = document.getElementById('feval-textarea');
+    textarea.addEventListener('input', function () {
+      // Auto-grow
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+      updateSendBtn(this.value);
+    });
+
+    textarea.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage(this.value);
+      }
+    });
+
+    var sendBtn = document.getElementById('feval-send-btn');
+    sendBtn.addEventListener('click', function () {
+      sendMessage(textarea.value);
+    });
+
+    // ── Close & clear buttons ──
+    document.getElementById('feval-close-btn').addEventListener('click', closeChat);
+    document.getElementById('feval-clear-btn').addEventListener('click', function () {
+      if (isLoading) return;
+      clearConversation();
+    });
+
+    // ── Close on Escape ──
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && isOpen) closeChat();
+    });
+
+    // ── Show notification badge after 3s if not opened ──
+    setTimeout(function () {
+      if (!isOpen) {
+        notificationDot = document.getElementById('feval-notif-badge');
+        if (notificationDot) notificationDot.style.display = '';
+      }
+    }, 3000);
+  }
+
+  // ─── Init ─────────────────────────────────────────────────────────────────
+  function init() {
+    if (document.getElementById('feval-chatbot-root')) return; // already loaded
+    injectStyles();
+    buildWidget();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
