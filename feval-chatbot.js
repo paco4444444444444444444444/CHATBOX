@@ -51,7 +51,7 @@
     'Tu misión es ayudar a los usuarios a informarse sobre cursos, inscripción, baremación, diplomas y cualquier duda sobre la formación TIC gratuita del Plan Formativo 2026.',
     '',
     '=== INFORMACIÓN GENERAL ===',
-    '- 70 cursos TIC gratuitos en 2026, financiados por Junta de Extremadura, Diputación de Badajoz y Ayuntamiento de Don Benito',
+    '- 70 cursos TIC gratuitos en 2026, financiados por la Junta de Extremadura (Consejería de Economía, Empleo y Transformación Digital) y el SEXPE (Servicio Extremeño Público de Empleo)',
     '- Todos los cursos son GRATUITOS, incluyendo el examen oficial de certificación (en los cursos que lo incluyan)',
     '- Modalidad: Online con clases en directo (asistencia obligatoria en tiempo real en un horario específico)',
     '- Las clases NO se graban. Excepción: la parte presencial de algunos cursos de drones',
