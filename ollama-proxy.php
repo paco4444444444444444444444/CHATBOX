@@ -2,50 +2,94 @@
 /**
  * FEVAL Chatbot — Proxy PHP para Ollama / Groq
  * =============================================
- * Coloca este archivo en: /components/com_feval/ o en la raíz de Joomla
- * y configura $BACKEND según tu entorno.
+ * CONFIGURACIÓN PARA TU ENTORNO ESPECÍFICO:
+ *   - VirtualBox en modo Red Puente (bridged)
+ *   - Windows 10/11 como sistema anfitrión
+ *   - 16 GB RAM + GPU NVIDIA/AMD → modelo llama3.1:8b recomendado
+ *   - Uso local (solo tú accedes al sitio)
  *
- * INSTRUCCIONES DE INSTALACIÓN EN JOOMLA:
- * 1. Sube este archivo a la raíz de tu Joomla (junto a index.php)
- *    o en /components/com_feval/ollama-proxy.php
- * 2. Configura la sección "CONFIGURACIÓN" abajo
- * 3. En feval-chatbot.js pon: window.FEVAL_CHATBOT_BACKEND = 'proxy'
- *    y: window.FEVAL_CHATBOT_PROXY_URL = '/ollama-proxy.php'
+ * PASOS PREVIOS OBLIGATORIOS EN WINDOWS (hacer UNA sola vez):
+ * ────────────────────────────────────────────────────────────
+ * 1. Instala Ollama desde: https://ollama.com/download
+ *
+ * 2. Configura Ollama para escuchar en TODAS las interfaces
+ *    (por defecto solo escucha en localhost, la VM no puede verlo):
+ *    - Abre: Panel de Control → Sistema → Variables de entorno → Variables del sistema
+ *    - Añade nueva variable:
+ *        Nombre:  OLLAMA_HOST
+ *        Valor:   0.0.0.0:11434
+ *    - Reinicia el servicio Ollama (o reinicia el PC)
+ *
+ * 3. Abre el Firewall de Windows para permitir Ollama:
+ *    - Busca "Firewall de Windows con seguridad avanzada"
+ *    - Reglas de entrada → Nueva regla → Puerto → TCP → 11434 → Permitir
+ *    - Nombre: "Ollama API"
+ *
+ * 4. Descarga el modelo recomendado (con tu GPU se ejecutará muy rápido):
+ *    Abre PowerShell y ejecuta:
+ *        ollama pull llama3.1:8b
+ *    (o si tienes GPU con 4GB VRAM: ollama pull llama3.2:3b)
+ *
+ * 5. Encuentra la IP de tu PC Windows en la red local:
+ *    Abre PowerShell → escribe: ipconfig
+ *    Busca "Adaptador Ethernet" o "Wi-Fi" → "Dirección IPv4"
+ *    Normalmente es algo como: 192.168.1.X o 192.168.0.X
+ *    Pon esa IP en $OLLAMA_HOST abajo.
+ *
+ * 6. Verifica desde dentro de la VM (abre terminal en tu Linux/Windows de VirtualBox):
+ *        curl http://TU_IP_WINDOWS:11434/api/tags
+ *    Debe responder con la lista de modelos. Si no responde, revisa el firewall.
+ *
+ * INSTALACIÓN EN JOOMLA:
+ * ─────────────────────
+ * - Sube este archivo a la raíz de Joomla (junto a index.php)
+ * - Sube feval-chatbot.js donde ya lo tenías
+ * - En cada página de Joomla añade (Extensiones → Módulos → HTML Personalizado):
+ *     <script>window.FEVAL_CHATBOT_BACKEND = 'proxy';</script>
+ *     <script>window.FEVAL_CHATBOT_PROXY_URL = '/ollama-proxy.php';</script>
+ *     <script src="/ruta/a/feval-chatbot.js"></script>
  *
  * BACKENDS SOPORTADOS:
- *   'ollama' → Ollama corriendo en tu PC (gratis, ilimitado)
- *   'groq'   → API de Groq (gratis hasta 14.400 req/día, muy rápido)
+ *   'ollama' → Tu PC Windows con Ollama (GRATIS, ILIMITADO) ← RECOMENDADO
+ *   'groq'   → Nube Groq (GRATIS hasta 14.400 req/día, rapidísimo, sin GPU)
  *   'claude' → Anthropic Claude (de pago)
  */
 
-// ─── CONFIGURACIÓN ────────────────────────────────────────────────────────────
+// ─── CONFIGURACIÓN — EDITA SOLO ESTA SECCIÓN ─────────────────────────────────
 
-// Backend a usar: 'ollama', 'groq' o 'claude'
-$BACKEND = 'ollama';
+// Backend a usar
+$BACKEND = 'ollama'; // ← 'ollama' para tu PC, 'groq' para la nube gratis
 
-// ── Ollama (local en tu PC) ──
-// Si Joomla corre en VirtualBox con NAT:     usa '10.0.2.2'
-// Si Joomla corre en VirtualBox host-only:   usa '192.168.56.1' (IP del host)
-// Si Ollama y Joomla están en el mismo PC:   usa '127.0.0.1'
-$OLLAMA_HOST  = '10.0.2.2';   // Cambia esto según tu configuración VirtualBox
+// ── Ollama en tu PC Windows (Red Puente) ──────────────────────────────────────
+// Pon aquí la IP de tu PC Windows (ver Paso 5 arriba)
+// Ejemplo: '192.168.1.45' o '192.168.0.12'
+// IMPORTANTE: No pongas 'localhost' ni '127.0.0.1' — con Red Puente no funciona
+$OLLAMA_HOST  = '192.168.1.X';   // ← CAMBIA ESTO por tu IP real de Windows
 $OLLAMA_PORT  = 11434;
-$OLLAMA_MODEL = 'llama3.2';   // O: 'mistral', 'qwen2.5', 'phi3'
 
-// ── Groq (nube gratuita - 14.400 req/día) ──
-// Obtén tu API key gratis en: https://console.groq.com
+// Modelo recomendado para tu hardware (16GB RAM + GPU):
+//   llama3.1:8b       → mejor calidad/velocidad, requiere GPU 6GB+ VRAM
+//   llama3.2:3b       → más rápido, bueno con GPU 4GB VRAM
+//   qwen2.5:14b       → muy bueno en español, requiere GPU 10GB+ VRAM
+//   mistral:7b        → alternativa rápida y equilibrada
+$OLLAMA_MODEL = 'llama3.1:8b';
+
+// ── Groq — Alternativa nube gratuita (sin GPU necesaria) ──────────────────────
+// Si prefieres no depender de que Ollama esté corriendo:
+// 1. Regístrate gratis en: https://console.groq.com
+// 2. Crea una API Key y pégala aquí
+// 3. Cambia $BACKEND = 'groq' arriba
 $GROQ_API_KEY = 'gsk_TU_API_KEY_DE_GROQ_AQUI';
-$GROQ_MODEL   = 'llama-3.3-70b-versatile'; // Muy potente y gratis
+$GROQ_MODEL   = 'llama-3.3-70b-versatile'; // Gratis, muy potente, < 1s respuesta
 
-// ── Claude / Anthropic (de pago) ──
+// ── Claude / Anthropic (de pago, solo si lo necesitas) ────────────────────────
 $CLAUDE_API_KEY = 'sk-ant-TU_API_KEY_AQUI';
-$CLAUDE_MODEL   = 'claude-haiku-4-5-20251001'; // El más barato de Claude
+$CLAUDE_MODEL   = 'claude-haiku-4-5-20251001';
 
-// ── Seguridad: dominios permitidos (deja vacío para permitir todos) ──
-$ALLOWED_ORIGINS = [
-    'https://formacionfeval.com',
-    'http://localhost',
-    'http://127.0.0.1',
-];
+// ── Seguridad: dominios que pueden usar este proxy ────────────────────────────
+// En uso local puedes dejar la lista vacía para permitir cualquier origen,
+// o añadir la IP/dominio de tu Joomla local.
+$ALLOWED_ORIGINS = []; // Uso local → sin restricción de origen
 
 // ─── FIN CONFIGURACIÓN ────────────────────────────────────────────────────────
 
