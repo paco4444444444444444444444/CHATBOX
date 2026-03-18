@@ -1,19 +1,33 @@
 /*!
- * FEVAL Chatbot Widget v1.0.0
+ * FEVAL Chatbot Widget v2.0.0
  * Asistente virtual IA para formacionfeval.com
  *
  * INSTRUCCIONES DE INSTALACIÓN:
  * ==============================
- * 1. Sube feval-chatbot.js a tu servidor
- * 2. Añade en el <head> o antes de </body> de cada página:
+ * 1. Sube feval-chatbot.js y ollama-proxy.php a tu servidor Joomla
+ * 2. Configura ollama-proxy.php con tu backend (Ollama, Groq o Claude)
+ * 3. Añade en el <head> o antes de </body> de cada página:
  *
- *    <script>window.FEVAL_CHATBOT_API_KEY = "sk-ant-TU_API_KEY_AQUI";</script>
+ *    OPCIÓN A — Ollama local (GRATIS, ILIMITADO):
+ *    <script>window.FEVAL_CHATBOT_BACKEND = 'proxy';</script>
+ *    <script>window.FEVAL_CHATBOT_PROXY_URL = '/ollama-proxy.php';</script>
  *    <script src="/ruta/a/feval-chatbot.js"></script>
  *
- * 3. El widget aparecerá automáticamente en la esquina inferior derecha.
+ *    OPCIÓN B — Groq nube (GRATIS hasta 14.400 req/día, muy rápido):
+ *    <script>window.FEVAL_CHATBOT_BACKEND = 'proxy';</script>
+ *    <script>window.FEVAL_CHATBOT_PROXY_URL = '/ollama-proxy.php';</script>
+ *    <script src="/ruta/a/feval-chatbot.js"></script>
+ *    (en ollama-proxy.php pon $BACKEND = 'groq')
  *
- * CONFIGURACIÓN OPCIONAL:
- *    window.FEVAL_CHATBOT_API_KEY  — Tu API key de Anthropic (obligatorio)
+ *    OPCIÓN C — Claude directo desde browser (requiere API key de pago):
+ *    <script>window.FEVAL_CHATBOT_BACKEND = 'claude';</script>
+ *    <script>window.FEVAL_CHATBOT_API_KEY = "sk-ant-TU_KEY";</script>
+ *    <script src="/ruta/a/feval-chatbot.js"></script>
+ *
+ * VARIABLES DE CONFIGURACIÓN:
+ *    window.FEVAL_CHATBOT_BACKEND    — 'proxy' (recomendado) o 'claude'
+ *    window.FEVAL_CHATBOT_PROXY_URL  — URL del proxy PHP (cuando backend='proxy')
+ *    window.FEVAL_CHATBOT_API_KEY    — API key de Anthropic (solo backend='claude')
  *
  * SOPORTE: formacion@feval.com
  */
@@ -22,11 +36,15 @@
   'use strict';
 
   // ─── Configuración ────────────────────────────────────────────────────────
-  var API_KEY = (typeof window !== 'undefined' && window.FEVAL_CHATBOT_API_KEY) || '';
-  var API_URL = 'https://api.anthropic.com/v1/messages';
-  var MODEL   = 'claude-sonnet-4-20250514';
+  // Backend: 'proxy' usa ollama-proxy.php (Ollama/Groq, GRATIS)
+  //          'claude' llama a Anthropic directamente desde el browser (de pago)
+  var BACKEND     = (typeof window !== 'undefined' && window.FEVAL_CHATBOT_BACKEND)   || 'proxy';
+  var PROXY_URL   = (typeof window !== 'undefined' && window.FEVAL_CHATBOT_PROXY_URL) || '/ollama-proxy.php';
+  var API_KEY     = (typeof window !== 'undefined' && window.FEVAL_CHATBOT_API_KEY)   || '';
+  var CLAUDE_URL  = 'https://api.anthropic.com/v1/messages';
+  var CLAUDE_MODEL = 'claude-sonnet-4-20250514';
   var MAX_HISTORY = 10; // pares de mensajes a mantener en contexto
-  var REQUEST_TIMEOUT_MS = 30000;
+  var REQUEST_TIMEOUT_MS = 45000; // 45s (Ollama local puede tardar más)
 
   var SYSTEM_PROMPT = [
     'Eres el asistente virtual oficial de FEVAL Formación, la plataforma de formación TIC gratuita de la Institución Ferial de Extremadura. Tu nombre es "Asistente FEVAL".',
@@ -456,9 +474,18 @@
 
   // ─── API call ─────────────────────────────────────────────────────────────
   function callAPI(userText, retryFn) {
-    if (!API_KEY) {
+
+    // Validar configuración según backend
+    if (BACKEND === 'claude' && !API_KEY) {
       renderMessage('assistant',
         'El chat no está disponible en este momento. Para asistencia, contacta con nosotros en formacion@feval.com o llama al 924 82 91 00.',
+        true
+      );
+      return;
+    }
+    if (BACKEND === 'proxy' && !PROXY_URL) {
+      renderMessage('assistant',
+        'El chat no está configurado correctamente (falta PROXY_URL). Contacta con formacion@feval.com.',
         true
       );
       return;
@@ -479,33 +506,55 @@
     var controller = null;
     var timeoutId = null;
 
+    // Construir la petición según el backend
+    var fetchUrl, fetchHeaders, fetchBody;
+
+    if (BACKEND === 'proxy') {
+      // ── Proxy PHP (Ollama / Groq) ─────────────────────────────────────────
+      fetchUrl = PROXY_URL;
+      fetchHeaders = { 'Content-Type': 'application/json' };
+      fetchBody = JSON.stringify({
+        system: SYSTEM_PROMPT,
+        messages: conversationHistory,
+        max_tokens: 800
+      });
+    } else {
+      // ── Claude directo desde browser ──────────────────────────────────────
+      fetchUrl = CLAUDE_URL;
+      fetchHeaders = {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      };
+      fetchBody = JSON.stringify({
+        model: CLAUDE_MODEL,
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: conversationHistory
+      });
+    }
+
     try {
       controller = new AbortController();
       timeoutId = setTimeout(function () {
         controller.abort();
       }, REQUEST_TIMEOUT_MS);
 
-      fetch(API_URL, {
+      fetch(fetchUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': API_KEY,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
-          messages: conversationHistory
-        }),
+        headers: fetchHeaders,
+        body: fetchBody,
         signal: controller.signal
       })
       .then(function (response) {
         clearTimeout(timeoutId);
         if (!response.ok) {
           return response.json().catch(function () { return {}; }).then(function (errBody) {
-            throw new Error('API_ERROR:' + response.status + ':' + (errBody && errBody.error && errBody.error.message ? errBody.error.message : 'Error desconocido'));
+            var msg = errBody && errBody.error
+              ? (typeof errBody.error === 'string' ? errBody.error : errBody.error.message)
+              : 'Error desconocido';
+            throw new Error('API_ERROR:' + response.status + ':' + msg);
           });
         }
         return response.json();
@@ -515,6 +564,7 @@
         isLoading = false;
         setInputDisabled(false);
 
+        // Formato unificado: ambos backends devuelven {content:[{type:'text',text:'...'}]}
         var assistantText = '';
         if (data.content && data.content.length > 0) {
           for (var i = 0; i < data.content.length; i++) {
@@ -549,7 +599,7 @@
 
         var msg;
         if (err.name === 'AbortError') {
-          msg = 'La solicitud tardó demasiado (más de 30 segundos). ';
+          msg = 'La solicitud tardó demasiado (' + (REQUEST_TIMEOUT_MS / 1000) + 's). Si usas Ollama, puede que el modelo esté cargando por primera vez. ';
         } else if (err.message && err.message.indexOf('API_ERROR:') === 0) {
           var parts = err.message.split(':');
           var status = parseInt(parts[1]);
@@ -557,6 +607,8 @@
             msg = 'La clave de API no es válida. ';
           } else if (status === 429) {
             msg = 'Demasiadas solicitudes. Espera un momento y vuelve a intentarlo. ';
+          } else if (status === 502 || status === 503) {
+            msg = 'El servidor de IA no está disponible. Comprueba que Ollama esté ejecutándose. ';
           } else {
             msg = 'Error al conectar con el asistente (' + status + '). ';
           }
