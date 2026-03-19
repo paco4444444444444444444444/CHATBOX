@@ -433,8 +433,12 @@
   function applyInline(text) {
     return text
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.*?)__/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+      .replace(/(https?:\/\/[^\s<"]+?)([.,;!?)\]]*)?(?=\s|$|<)/g,
+        function(m, url) {
+          return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+        });
   }
 
   function formatText(text) {
