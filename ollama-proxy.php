@@ -167,6 +167,137 @@ if (empty($clean_messages)) {
     exit;
 }
 
+// ─── Respuesta directa sin pasar por el modelo ────────────────────────────────
+// Para preguntas sobre cursos concretos, el PHP responde directamente
+// con datos exactos, evitando que el modelo invente información.
+
+$DIRECT_CATALOG = [
+  ['n'=>1,  'nombre'=>'Fundamentos de la Inteligencia Artificial',                    'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'16/03/2026','fin'=>'09/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>2,  'nombre'=>'IA avanzada: Arquitecturas, Modelos y Despliegue',             'h'=>24,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'20/04/2026','fin'=>'30/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>3,  'nombre'=>'Fundamentos de IA Generativa - CCS',                           'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'11/05/2026','fin'=>'28/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>4,  'nombre'=>'Microsoft Azure AI - AI-900',                                  'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'05/10/2026','fin'=>'23/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>5,  'nombre'=>'AWS AI Practitioner',                                          'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'09/11/2026','fin'=>'26/11/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>6,  'nombre'=>'Introducción a la Inteligencia Artificial',                    'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'13/04/2026','fin'=>'30/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>7,  'nombre'=>'Introducción a ChatGPT: IA para Textos y Reuniones',           'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'11/05/2026','fin'=>'28/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>8,  'nombre'=>'Herramientas de IA para Imágenes y Sonido',                   'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'28/09/2026','fin'=>'16/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>9,  'nombre'=>'Análisis de Datos con IA y Aplicaciones Avanzadas',           'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'26/10/2026','fin'=>'13/11/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>10, 'nombre'=>'Fundamentos de redes - CCST Networking',                       'h'=>48,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'16/03/2026','fin'=>'16/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>11, 'nombre'=>'Ciberseguridad básica - CCST Cybersecurity',                   'h'=>48,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'04/05/2026','fin'=>'28/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>12, 'nombre'=>'Hacking Ético - Certificación EC Council',                     'h'=>48,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'26/10/2026','fin'=>'03/12/2026','dias'=>'lun-mié','hor'=>'16-20h'],
+  ['n'=>13, 'nombre'=>'Análisis Forense - EC Council DFE',                            'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'14/09/2026','fin'=>'14/10/2026','dias'=>'lun-mié','hor'=>'16-20h'],
+  ['n'=>14, 'nombre'=>'CCNA: Introduction to Networks',                               'h'=>24,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'14/09/2026','fin'=>'24/09/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>15, 'nombre'=>'CCNA: Switching, Routing and Wireless Essentials',             'h'=>48,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'05/10/2026','fin'=>'29/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>16, 'nombre'=>'CCNA: Enterprise Networking, Security and Automation',         'h'=>48,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'09/11/2026','fin'=>'03/12/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>17, 'nombre'=>'Fundamentos de redes - CCST Networking',                       'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'09/02/2026','fin'=>'12/03/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>18, 'nombre'=>'Ciberseguridad básica - CCST Cybersecurity',                   'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'23/03/2026','fin'=>'23/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>19, 'nombre'=>'Introducción al Hacking Ético',                                'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'04/05/2026','fin'=>'21/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>20, 'nombre'=>'Gestión de Incidentes de Seguridad',                           'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'21/09/2026','fin'=>'08/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>21, 'nombre'=>'Introducción al Cloud Computing e IA en la nube',              'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'13/04/2026','fin'=>'30/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>22, 'nombre'=>'Microsoft Azure Fundamentals AZ-900',                          'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'11/05/2026','fin'=>'28/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>23, 'nombre'=>'Cloud con AWS - Certificación AWS Cloud Practitioner',         'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'28/09/2026','fin'=>'16/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>24, 'nombre'=>'Cloud con Google - Certificación Google Cloud Associate',      'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'26/10/2026','fin'=>'13/11/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>25, 'nombre'=>'Fundamentos de programación en Javascript',                    'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'02/02/2026','fin'=>'26/02/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>26, 'nombre'=>'Fundamentos de Programación en Python',                        'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'09/03/2026','fin'=>'26/03/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>27, 'nombre'=>'Fundamentos de bases de datos',                                'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'13/04/2026','fin'=>'30/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>28, 'nombre'=>'Microsoft Azure Data DP-900',                                  'h'=>24,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'05/10/2026','fin'=>'16/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>29, 'nombre'=>'IA para programadores',                                        'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'26/10/2026','fin'=>'13/11/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>30, 'nombre'=>'Game Designer',                                                'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'09/03/2026','fin'=>'26/03/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>31, 'nombre'=>'Concept Art 2D y 3D para videojuegos',                         'h'=>24,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'13/04/2026','fin'=>'23/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>32, 'nombre'=>'Arte y animación 2D/3D con Unity',                             'h'=>24,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'04/05/2026','fin'=>'14/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>33, 'nombre'=>'Unity Certified User: Programación de videojuegos',            'h'=>48,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'05/10/2026','fin'=>'30/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>34, 'nombre'=>'Desarrollador VR con Unity',                                   'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'09/11/2026','fin'=>'26/11/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>35, 'nombre'=>'Gestión de proyectos - Certificación PMI Ready',               'h'=>48,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'16/03/2026','fin'=>'16/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>36, 'nombre'=>'SCRUM MASTER + Certificación',                                 'h'=>24,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'04/05/2026','fin'=>'14/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>37, 'nombre'=>'Herramientas IA para gestión de proyectos',                    'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'28/09/2026','fin'=>'16/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>38, 'nombre'=>'Soporte y operaciones TIC - CCST IT Support',                  'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'13/04/2026','fin'=>'30/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>39, 'nombre'=>'Windows Server Hybrid Administrator Associate',                'h'=>48,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'11/05/2026','fin'=>'04/06/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>40, 'nombre'=>'Linux LPIC1 + Certificación',                                  'h'=>48,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'19/10/2026','fin'=>'13/11/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>41, 'nombre'=>'Fundamentos de Python',                                        'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'09/02/2026','fin'=>'05/03/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>42, 'nombre'=>'Python avanzado',                                              'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'09/03/2026','fin'=>'26/03/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>43, 'nombre'=>'Fundamentos de análisis de datos con Python',                  'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'13/04/2026','fin'=>'30/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>44, 'nombre'=>'Análisis de datos avanzado con Python',                        'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'11/05/2026','fin'=>'28/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>45, 'nombre'=>'Fundamentos de Excel para análisis de datos',                  'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'14/09/2026','fin'=>'01/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>46, 'nombre'=>'Excel Avanzado para análisis de datos',                        'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'05/10/2026','fin'=>'23/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>47, 'nombre'=>'Introducción al Business Intelligence con Power BI',            'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'26/10/2026','fin'=>'13/11/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>48, 'nombre'=>'Análisis Avanzado y Publicación de Informes con Power BI',     'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'16/11/2026','fin'=>'03/12/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>49, 'nombre'=>'Agricultura de Precisión y Teledetección ED1',                 'h'=>24,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'19/01/2026','fin'=>'04/02/2026','dias'=>'lun-mié','hor'=>'16-20h'],
+  ['n'=>50, 'nombre'=>'SIG en Agricultura 4.0 ED1',                                   'h'=>24,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'09/02/2026','fin'=>'04/03/2026','dias'=>'lun-mié','hor'=>'16-20h'],
+  ['n'=>51, 'nombre'=>'Fotogrametría y sensorización agrícola ED1',                   'h'=>32,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'09/03/2026','fin'=>'08/04/2026','dias'=>'lun-mié','hor'=>'16-20h'],
+  ['n'=>52, 'nombre'=>'Certificación piloto drones A1/A3+A2+STS01/STS02 ED1',        'h'=>64,  'pub'=>'EMPLEADOS',   'mod'=>'SEMIPRESENCIAL','ini'=>'20/04/2026','fin'=>'10/06/2026','dias'=>'lun-mié','hor'=>'16-20h'],
+  ['n'=>53, 'nombre'=>'Actualización piloto drones STS Ed1',                          'h'=>4,   'pub'=>'EMPLEADOS',   'mod'=>'PRESENCIAL',    'ini'=>'20/04/2026','fin'=>'30/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>54, 'nombre'=>'Actualización piloto drones STS Ed2',                          'h'=>4,   'pub'=>'EMPLEADOS',   'mod'=>'PRESENCIAL',    'ini'=>'04/05/2026','fin'=>'14/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>55, 'nombre'=>'Actualización piloto drones STS Ed3',                          'h'=>4,   'pub'=>'EMPLEADOS',   'mod'=>'PRESENCIAL',    'ini'=>'18/05/2026','fin'=>'28/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>56, 'nombre'=>'Agricultura de Precisión y Teledetección ED2',                 'h'=>24,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'20/01/2026','fin'=>'05/02/2026','dias'=>'mar-jue','hor'=>'16-20h'],
+  ['n'=>57, 'nombre'=>'SIG en Agricultura 4.0 ED2',                                   'h'=>24,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'10/02/2026','fin'=>'05/03/2026','dias'=>'mar-jue','hor'=>'16-20h'],
+  ['n'=>58, 'nombre'=>'Fotogrametría y sensorización agrícola ED2',                   'h'=>32,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'10/03/2026','fin'=>'09/04/2026','dias'=>'mar-jue','hor'=>'16-20h'],
+  ['n'=>59, 'nombre'=>'Certificación piloto drones A1/A3+A2+STS01/STS02 ED2',        'h'=>64,  'pub'=>'DESEMPLEADOS','mod'=>'SEMIPRESENCIAL','ini'=>'21/04/2026','fin'=>'11/06/2026','dias'=>'mar-jue','hor'=>'16-20h'],
+  ['n'=>60, 'nombre'=>'Actualización piloto drones STS Ed4',                          'h'=>4,   'pub'=>'DESEMPLEADOS','mod'=>'PRESENCIAL',    'ini'=>'14/09/2026','fin'=>'24/09/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>61, 'nombre'=>'Actualización piloto drones STS Ed5',                          'h'=>4,   'pub'=>'DESEMPLEADOS','mod'=>'PRESENCIAL',    'ini'=>'28/09/2026','fin'=>'08/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>62, 'nombre'=>'Actualización piloto drones STS Ed6',                          'h'=>4,   'pub'=>'DESEMPLEADOS','mod'=>'PRESENCIAL',    'ini'=>'13/10/2026','fin'=>'23/10/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>63, 'nombre'=>'Teledetección satelital y terrestre ED Docentes',              'h'=>24,  'pub'=>'DOCENTES',    'mod'=>'ONLINE',        'ini'=>'20/04/2026','fin'=>'30/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>64, 'nombre'=>'SIG Básico ED Docentes',                                       'h'=>48,  'pub'=>'DOCENTES',    'mod'=>'ONLINE',        'ini'=>'04/05/2026','fin'=>'28/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>65, 'nombre'=>'Fotogrametría con drones ED Docentes',                         'h'=>24,  'pub'=>'DOCENTES',    'mod'=>'ONLINE',        'ini'=>'01/06/2026','fin'=>'11/06/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>66, 'nombre'=>'Iniciación a Photoshop',                                       'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'26/01/2026','fin'=>'12/02/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>67, 'nombre'=>'Iniciación a Illustrator',                                     'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'23/02/2026','fin'=>'12/03/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>68, 'nombre'=>'Edición de vídeo con Adobe Premiere',                          'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'16/03/2026','fin'=>'09/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>69, 'nombre'=>'IA: Herramientas para Diseño y Creadores',                     'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'20/04/2026','fin'=>'07/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>70, 'nombre'=>'Community Manager',                                            'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'23/02/2026','fin'=>'12/03/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>71, 'nombre'=>'Marketing digital y redes sociales - Social Media Plan',       'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'16/03/2026','fin'=>'09/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>72, 'nombre'=>'IA aplicada al Growth y Digital Marketing',                    'h'=>36,  'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'20/04/2026','fin'=>'07/05/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+  ['n'=>73, 'nombre'=>'Marketing en Meta (Instagram/Facebook/Whatsapp) Certif.M100-101','h'=>48,'pub'=>'DESEMPLEADOS','mod'=>'ONLINE',        'ini'=>'18/05/2026','fin'=>'11/06/2026','dias'=>'lun-jue','hor'=>'17-20h'],
+];
+
+/**
+ * Busca cursos que coincidan con palabras clave del mensaje.
+ * Devuelve array de cursos o null si no hay coincidencia directa.
+ */
+function searchCatalog($query, $catalog) {
+    $q = mb_strtolower($query);
+    // Palabras a ignorar
+    $stop = ['curso','cursos','hay','hay','sobre','para','el','la','los','las','de','que','información','informacion','dame','quiero','saber','ver'];
+    $words = array_filter(explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $q)), function($w) use ($stop) {
+        return mb_strlen($w) > 2 && !in_array($w, $stop);
+    });
+    if (empty($words)) return null;
+
+    $matches = [];
+    foreach ($catalog as $c) {
+        $name = mb_strtolower($c['nombre']);
+        foreach ($words as $w) {
+            if (mb_strpos($name, $w) !== false) {
+                $matches[] = $c;
+                break;
+            }
+        }
+    }
+    return count($matches) > 0 ? $matches : null;
+}
+
+function formatCourseList($courses) {
+    if (count($courses) === 1) {
+        $c = $courses[0];
+        return "**{$c['nombre']}**\n- Horas: {$c['h']}h\n- Dirigido a: {$c['pub']}\n- Modalidad: {$c['mod']}\n- Fechas: {$c['ini']} – {$c['fin']}\n- Días: {$c['dias']}, {$c['hor']}\n- Preinscripción: https://formacionfeval.com/index.php/cursos-feval";
+    }
+    $lines = [];
+    foreach ($courses as $c) {
+        $lines[] = "**{$c['nombre']}** ({$c['h']}h, {$c['pub']}, {$c['mod']}, {$c['ini']}–{$c['fin']}, {$c['dias']} {$c['hor']})";
+    }
+    return implode("\n", $lines) . "\n\nPreinscripción: https://formacionfeval.com/index.php/cursos-feval";
+}
+
+// Detectar si la pregunta es sobre cursos específicos y responder directamente
+$last_user_msg = '';
+foreach (array_reverse($clean_messages) as $m) {
+    if ($m['role'] === 'user') { $last_user_msg = $m['content']; break; }
+}
+
+$direct_matches = searchCatalog($last_user_msg, $DIRECT_CATALOG);
+if ($direct_matches !== null) {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['reply' => formatCourseList($direct_matches)]);
+    exit;
+}
+
 // ─── Scraping de fechas y horarios en tiempo real ─────────────────────────────
 
 function curlGet($url, $timeout = 15) {
