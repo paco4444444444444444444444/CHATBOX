@@ -402,7 +402,88 @@ function fetchCourseData() {
     return $result;
 }
 
-// Scraper desactivado: los datos del catálogo ya están en el system prompt del JS
+// ─── Catálogo de cursos con filtrado inteligente ──────────────────────────────
+
+$CATALOG = [
+  'ia' => [
+    'keywords' => ['ia','inteligencia artificial','chatgpt','generativa','azure ai','aws ai','ai-900','ai practitioner','gpt','llm','machine learning'],
+    'data' => "-- INTELIGENCIA ARTIFICIAL --\nItinerario EMPLEADOS (168h): 1.Fundamentos IA|36h|16/03-09/04/2026|lun-jue 17-20h\n2.IA avanzada|24h|20/04-30/04/2026|lun-jue 17-20h\n3.IA Generativa CCS|36h|11/05-28/05/2026|lun-jue 17-20h\n4.Azure AI-900|36h|05/10-23/10/2026|lun-jue 17-20h\n5.AWS AI Practitioner|36h|09/11-26/11/2026|lun-jue 17-20h\nItinerario DESEMPLEADOS (144h): 6.Introducción a la IA|36h|13/04-30/04/2026|lun-jue 17-20h\n7.ChatGPT: IA para Textos y Reuniones|36h|11/05-28/05/2026|lun-jue 17-20h\n8.IA para Imágenes y Sonido|36h|28/09-16/10/2026|lun-jue 17-20h\n9.Análisis de Datos con IA|36h|26/10-13/11/2026|lun-jue 17-20h"
+  ],
+  'ciber' => [
+    'keywords' => ['ciberseguridad','hacking','hacker','ccna','cisco','redes','networking','forense','firewall','seguridad','ciberseguridad','ccst','incidentes'],
+    'data' => "-- CIBERSEGURIDAD Y REDES --\nItinerario EMPLEADOS (180h): 10.Fundamentos redes CCST|48h|16/03-16/04/2026|lun-jue 17-20h\n11.Ciberseguridad básica CCST|48h|04/05-28/05/2026|lun-jue 17-20h\n12.Hacking Ético EC Council|48h|26/10-03/12/2026|lun-mié 16-20h\n13.Análisis Forense EC Council|36h|14/09-14/10/2026|lun-mié 16-20h\nCertificado CISCO CCNA (120h): 14.CCNA Intro to Networks|24h|14/09-24/09/2026|lun-jue 17-20h\n15.CCNA Switching Routing Wireless|48h|05/10-29/10/2026|lun-jue 17-20h\n16.CCNA Enterprise Networking|48h|09/11-03/12/2026|lun-jue 17-20h\nItinerario DESEMPLEADOS (144h): 17.Fundamentos redes CCST|36h|09/02-12/03/2026|lun-jue 17-20h\n18.Ciberseguridad básica CCST|36h|23/03-23/04/2026|lun-jue 17-20h\n19.Hacking Ético intro|36h|04/05-21/05/2026|lun-jue 17-20h\n20.Gestión Incidentes Seguridad|36h|21/09-08/10/2026|lun-jue 17-20h"
+  ],
+  'cloud' => [
+    'keywords' => ['cloud','azure','aws','amazon','google cloud','nube','az-900','dp-900','cloud practitioner','gcp'],
+    'data' => "-- CLOUD COMPUTING --\nItinerario EMPLEADOS (144h): 21.Cloud Computing e IA en la nube|36h|13/04-30/04/2026|lun-jue 17-20h\n22.Azure Fundamentals AZ-900|36h|11/05-28/05/2026|lun-jue 17-20h\n23.AWS Cloud Practitioner|36h|28/09-16/10/2026|lun-jue 17-20h\n24.Google Cloud Associate|36h|26/10-13/11/2026|lun-jue 17-20h"
+  ],
+  'software' => [
+    'keywords' => ['javascript','python','programacion','programación','bases de datos','sql','desarrollo','software','código','dp-900'],
+    'data' => "-- DESARROLLO DE SOFTWARE --\nItinerario DESEMPLEADOS (168h): 25.Javascript|36h|02/02-26/02/2026|lun-jue 17-20h\n26.Python básico|36h|09/03-26/03/2026|lun-jue 17-20h\n27.Bases de datos|36h|13/04-30/04/2026|lun-jue 17-20h\n28.Azure Data DP-900|24h|05/10-16/10/2026|lun-jue 17-20h\n29.IA para programadores|36h|26/10-13/11/2026|lun-jue 17-20h"
+  ],
+  'videojuegos' => [
+    'keywords' => ['videojuego','unity','game','juego','concept art','vr','realidad virtual','animacion','animación','arte','illustrator'],
+    'data' => "-- VIDEOJUEGOS --\nItinerario DESEMPLEADOS (168h): 30.Game Designer|36h|09/03-26/03/2026|lun-jue 17-20h\n31.Concept Art 2D/3D|24h|13/04-23/04/2026|lun-jue 17-20h\n32.Arte y animación con Unity|24h|04/05-14/05/2026|lun-jue 17-20h\n33.Unity Certified User|48h|05/10-30/10/2026|lun-jue 17-20h\n34.Desarrollador VR Unity|36h|09/11-26/11/2026|lun-jue 17-20h"
+  ],
+  'proyectos' => [
+    'keywords' => ['proyecto','proyectos','scrum','pmi','agile','agil','gestión de proyecto'],
+    'data' => "-- GESTIÓN DE PROYECTOS --\nItinerario EMPLEADOS (108h): 35.Gestión proyectos PMI Ready|48h|16/03-16/04/2026|lun-jue 17-20h\n36.SCRUM MASTER + Certificación|24h|04/05-14/05/2026|lun-jue 17-20h\n37.IA para gestión de proyectos|36h|28/09-16/10/2026|lun-jue 17-20h"
+  ],
+  'sistemas' => [
+    'keywords' => ['windows server','linux','lpic','soporte','sistemas','it support','ccst it','servidor'],
+    'data' => "-- SISTEMAS Y SOPORTE --\nItinerario DESEMPLEADOS (132h): 38.Soporte TIC CCST IT Support|36h|13/04-30/04/2026|lun-jue 17-20h\n39.Windows Server Hybrid Admin|48h|11/05-04/06/2026|lun-jue 17-20h\n40.Linux LPIC1|48h|19/10-13/11/2026|lun-jue 17-20h"
+  ],
+  'analitica' => [
+    'keywords' => ['excel','power bi','bi','analisis de datos','análisis de datos','python avanzado','pandas','analitica','analítica','business intelligence'],
+    'data' => "-- ANALÍTICA DE DATOS Y BI --\nItinerario EMPLEADOS Python (144h): 41.Python básico|36h|09/02-05/03/2026|lun-jue 17-20h\n42.Python avanzado|36h|09/03-26/03/2026|lun-jue 17-20h\n43.Análisis datos Python|36h|13/04-30/04/2026|lun-jue 17-20h\n44.Análisis datos avanzado Python|36h|11/05-28/05/2026|lun-jue 17-20h\nItinerario DESEMPLEADOS BI (144h): 45.Excel para análisis de datos|36h|14/09-01/10/2026|lun-jue 17-20h\n46.Excel Avanzado|36h|05/10-23/10/2026|lun-jue 17-20h\n47.Power BI intro|36h|26/10-13/11/2026|lun-jue 17-20h\n48.Power BI avanzado|36h|16/11-03/12/2026|lun-jue 17-20h"
+  ],
+  'agricultura' => [
+    'keywords' => ['agricultura','dron','drone','sig','fotogrametria','fotogrametría','teledeteccion','teledetección','precision','precisión','sts','piloto'],
+    'data' => "-- AGRICULTURA 4.0 Y DRÓNICA --\nItinerario EMPLEADOS ED1 (144h): 49.Agricultura Precisión+Teledetección ED1|24h|19/01-04/02/2026|lun-mié 16-20h\n50.SIG Agricultura ED1|24h|09/02-04/03/2026|lun-mié 16-20h\n51.Fotogrametría+sensorización ED1|32h|09/03-08/04/2026|lun-mié 16-20h\n52.Certif.piloto drones A1/A3+A2+STS ED1|64h|20/04-10/06/2026|lun-mié 16-20h SEMIPRESENCIAL\n53-55.Actualización STS Ed1-3|4h c/u|abr-may 2026|PRESENCIAL\nItinerario DESEMPLEADOS ED2: 56.Agricultura+Teledetección ED2|24h|20/01-05/02/2026|mar-jue 16-20h\n57.SIG ED2|24h|10/02-05/03/2026\n58.Fotogrametría ED2|32h|10/03-09/04/2026\n59.Certif.drones ED2|64h|21/04-11/06/2026 SEMIPRESENCIAL\n60-62.Actualización STS Ed4-6|sep-oct 2026 PRESENCIAL\nDocentes: 63-65.Teledetección+SIG+Fotogrametría|abr-jun 2026"
+  ],
+  'diseno' => [
+    'keywords' => ['photoshop','illustrator','premiere','diseño','diseño grafico','diseño gráfico','video','vídeo','adobe','creadores'],
+    'data' => "-- DISEÑO GRÁFICO --\nItinerario EMPLEADOS (144h): 66.Photoshop|36h|26/01-12/02/2026|lun-jue 17-20h\n67.Illustrator|36h|23/02-12/03/2026|lun-jue 17-20h\n68.Edición vídeo Premiere|36h|16/03-09/04/2026|lun-jue 17-20h\n69.IA para Diseño y Creadores|36h|20/04-07/05/2026|lun-jue 17-20h"
+  ],
+  'marketing' => [
+    'keywords' => ['marketing','community manager','redes sociales','meta','instagram','facebook','social media','growth'],
+    'data' => "-- MARKETING DIGITAL --\nItinerario DESEMPLEADOS (156h): 70.Community Manager|36h|23/02-12/03/2026|lun-jue 17-20h\n71.Marketing digital y redes sociales|36h|16/03-09/04/2026|lun-jue 17-20h\n72.IA en Marketing Digital|36h|20/04-07/05/2026|lun-jue 17-20h\n73.Meta Instagram/Facebook Certif.M100-101|48h|18/05-11/06/2026|lun-jue 17-20h"
+  ],
+];
+
+// Detectar área relevante en la última pregunta del usuario e inyectar solo esos cursos
+$last_user_msg = '';
+foreach (array_reverse($clean_messages) as $m) {
+    if ($m['role'] === 'user') { $last_user_msg = mb_strtolower($m['content']); break; }
+}
+
+$matched_areas = [];
+// Si pregunta por todos los cursos o áreas generales, inyectar resumen de todas las áreas
+$general_keywords = ['todos','todo','cursos disponibles','que cursos','qué cursos','lista','listado','áreas','areas','que hay','qué hay','oferta','disponibles','cuáles','cuales'];
+$is_general = false;
+foreach ($general_keywords as $gk) {
+    if (strpos($last_user_msg, $gk) !== false) { $is_general = true; break; }
+}
+
+if ($is_general) {
+    $summary = "-- RESUMEN ÁREAS Y Nº CURSOS 2026 --\n";
+    $summary .= "IA: 9 cursos (empl+desempl) | Ciberseguridad/Redes: 11 cursos (empl+desempl) | Cloud: 4 cursos (empl) | Desarrollo Software: 5 cursos (desempl) | Videojuegos: 5 cursos (desempl) | Gestión Proyectos: 3 cursos (empl) | Sistemas/Soporte: 3 cursos (desempl) | Analítica Datos/BI: 8 cursos (empl+desempl) | Agricultura/Drones: 17 cursos (empl+desempl+docentes) | Diseño Gráfico: 4 cursos (empl) | Marketing Digital: 4 cursos (desempl)\n";
+    $summary .= "Total: 73 acciones formativas. Todos ONLINE salvo algunos presenciales/semipresenciales en agricultura y drones.\n";
+    $summary .= "Ver catálogo completo: https://formacionfeval.com/index.php/cursos-feval";
+    $system_prompt .= "\n\n=== CURSOS DISPONIBLES ===\n" . $summary;
+} else {
+    foreach ($CATALOG as $area => $info) {
+        foreach ($info['keywords'] as $kw) {
+            if (strpos($last_user_msg, $kw) !== false) {
+                $matched_areas[$area] = $info['data'];
+                break;
+            }
+        }
+    }
+    if (!empty($matched_areas)) {
+        $system_prompt .= "\n\n=== CURSOS RELACIONADOS CON LA PREGUNTA ===\n" . implode("\n\n", $matched_areas);
+    }
+}
 
 // ─── Llamar al backend ────────────────────────────────────────────────────────
 
