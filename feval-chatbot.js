@@ -440,8 +440,9 @@
 
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
-      var isBullet  = /^[-•*] /.test(line);
+      var isBullet   = /^[-•*] /.test(line);
       var isNumbered = /^\d+[.)]\s/.test(line);
+      var isEmpty    = line.trim() === '';
 
       if (isBullet) {
         if (inOl) { html += '</ol>'; inOl = false; }
@@ -451,11 +452,15 @@
         if (inUl) { html += '</ul>'; inUl = false; }
         if (!inOl) { html += '<ol>'; inOl = true; }
         html += '<li>' + applyInline(line.replace(/^\d+[.)]\s/, '').trim()) + '</li>';
+      } else if (!isEmpty && (inUl || inOl)) {
+        // Línea de continuación de un ítem de lista: se añade al <li> anterior
+        html = html.replace(/<\/li>$/, ' ' + applyInline(line.trim()) + '</li>');
       } else {
         if (inUl) { html += '</ul>'; inUl = false; }
         if (inOl) { html += '</ol>'; inOl = false; }
-        if (line.trim() === '') {
-          html += '<br>';
+        if (isEmpty) {
+          // Solo añadir espacio si hay contenido previo
+          if (html && !html.endsWith('<br>')) html += '<br>';
         } else {
           html += '<p>' + applyInline(line) + '</p>';
         }
