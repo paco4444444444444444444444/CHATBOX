@@ -64,7 +64,7 @@ $BACKEND = 'ollama'; // ← 'ollama' para tu PC, 'groq' para la nube gratis
 // Pon aquí la IP de tu PC Windows (ver Paso 5 arriba)
 // Ejemplo: '192.168.1.45' o '192.168.0.12'
 // IMPORTANTE: No pongas 'localhost' ni '127.0.0.1' — con Red Puente no funciona
-$OLLAMA_HOST  = '192.168.14.31';  // IP de tu PC Windows en la red local
+$OLLAMA_HOST  = '192.168.14.39';  // IP de tu PC Windows en la red local
 $OLLAMA_PORT  = 11434;
 
 // Modelo recomendado para tu hardware (16GB RAM + GPU):
