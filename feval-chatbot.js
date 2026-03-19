@@ -153,6 +153,7 @@
     '- Para inscripciones dirige siempre a https://formacionfeval.com/index.php/cursos-feval',
     '- Para dudas urgentes o muy específicas, recomienda llamar al 924 829 100 o escribir a formacion@feval.com',
     '- Usa solo las URLs de formacionfeval.com que aparecen en este prompt',
+    '- IMPORTANTE: Escribe las URLs en texto plano, SIN rodearlas de asteriscos (**) ni guiones bajos (__). Correcto: https://ejemplo.com — Incorrecto: __https://ejemplo.com__ o **https://ejemplo.com**',
     '- Si el usuario parece frustrado o tiene un problema urgente (plaza, acceso, diploma), prioriza darle el contacto directo'
   ].join('\n');
 
