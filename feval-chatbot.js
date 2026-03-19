@@ -387,12 +387,15 @@
         'border-radius:20px 20px 0 0;',
         'padding-bottom:env(safe-area-inset-bottom,0px);',
       '}',
+      /* Ocultar botón flotante cuando el chat está abierto en móvil */
+      /* (el header ya tiene botón de cerrar) */
+      '#feval-chat-btn.open{display:none;}',
       '#feval-chat-btn{bottom:16px;right:16px;}',
       '#feval-input-area{',
         'padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));',
       '}',
       '.feval-qr-btn{font-size:13px;padding:8px 13px;}',
-      '#feval-textarea{font-size:16px;}', /* evita zoom en iOS */
+      '#feval-textarea{font-size:16px;}',
     '}',
     /* Muy pequeño (≤ 400px): pantalla completa */
     '@media(max-width:400px){',
