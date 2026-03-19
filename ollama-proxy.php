@@ -187,8 +187,106 @@ function curlGet($url, $timeout = 15) {
     return ($body && $code === 200) ? $body : null;
 }
 
+/**
+ * Extrae cursos de una página DOM de listado de Joomla.
+ * Devuelve array de ['titulo' => string, 'info' => string, 'url' => string]
+ */
+function extractCoursesFromPage($html, $baseUrl = 'https://formacionfeval.com') {
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+    libxml_clear_errors();
+    $xpath = new DOMXPath($dom);
+
+    // Eliminar ruido
+    foreach ($xpath->query('//script|//style|//nav|//header|//footer|//noscript|//form') as $node) {
+        $node->parentNode->removeChild($node);
+    }
+
+    $courses = [];
+
+    // Joomla blog layout: artículos individuales
+    $articles = $xpath->query(
+        '//article | //div[contains(@class,"item-page")] | ' .
+        '//div[contains(@class,"items-row")]//div[contains(@class,"item")] | ' .
+        '//div[contains(@class,"blog")]//div[contains(@class,"item")]'
+    );
+
+    foreach ($articles as $article) {
+        // Título del curso
+        $titleNode = $xpath->query(
+            './/h1[not(ancestor::nav)] | .//h2[not(ancestor::nav)] | ' .
+            './/h3[not(ancestor::nav)] | .//a[contains(@class,"item-title")]',
+            $article
+        )->item(0);
+        $title = $titleNode ? trim($titleNode->textContent) : '';
+
+        // URL del curso
+        $linkNode = $xpath->query('.//h1//a | .//h2//a | .//h3//a | .//a[contains(@class,"item-title")]', $article)->item(0);
+        $url = '';
+        if ($linkNode && $linkNode->hasAttribute('href')) {
+            $href = $linkNode->getAttribute('href');
+            $url = (strpos($href, 'http') === 0) ? $href : $baseUrl . $href;
+        }
+
+        // Línea de resumen tipo: | PRESENCIAL | DESEMPLEADOS | Lunes a Jueves | 17:00-20:00 | 4 Horas | 28/09/2026 a 08/10/2026 |
+        $text = preg_replace('/\s+/', ' ', trim($article->textContent));
+        $infoLine = '';
+
+        if (preg_match('/\|\s*(PRESENCIAL|ONLINE|WEBINAR)[^|]*(?:\|[^|]*){3,}\|\s*\d{2}[\/\-]\d{2}[\/\-]\d{4}/i', $text, $m)) {
+            $infoLine = trim($m[0]);
+        } elseif (preg_match('/(?:PRESENCIAL|ONLINE|WEBINAR)[^\n]*\d{2}[\/\-]\d{2}[\/\-]\d{4}/i', $text, $m)) {
+            $infoLine = trim($m[0]);
+        }
+
+        if ($title && $infoLine) {
+            $courses[] = ['titulo' => $title, 'info' => $infoLine, 'url' => $url];
+        }
+    }
+
+    // Fallback: si no hay artículos detectados, buscar bloques con patrón de pipe
+    if (empty($courses)) {
+        $bodyNode = $xpath->query('//body')->item(0);
+        if ($bodyNode) {
+            $fullText = $bodyNode->textContent;
+            // Buscar pares: línea de título seguida de línea con fechas/pipes
+            $lines = array_map('trim', explode("\n", preg_replace('/[ \t]+/', ' ', $fullText)));
+            $lines = array_values(array_filter($lines, function($l) { return strlen($l) > 3; }));
+            for ($i = 0; $i < count($lines) - 1; $i++) {
+                $next = $lines[$i + 1] ?? '';
+                if (
+                    strlen($lines[$i]) > 10 && strlen($lines[$i]) < 200 &&
+                    !preg_match('/\d{2}[\/\-]\d{2}/', $lines[$i]) &&
+                    preg_match('/\d{2}[\/\-]\d{2}[\/\-]\d{4}/', $next)
+                ) {
+                    $courses[] = ['titulo' => $lines[$i], 'info' => $next, 'url' => ''];
+                }
+            }
+        }
+    }
+
+    return $courses;
+}
+
+/**
+ * Detecta si hay página siguiente en el listado de Joomla y devuelve su URL.
+ */
+function getNextPageUrl($html, $currentUrl) {
+    if (!preg_match('/<a[^>]+rel=["\']next["\'][^>]*href=["\']([^"\']+)["\']|<a[^>]+href=["\']([^"\']+)["\'][^>]*rel=["\']next["\']/i', $html, $m)) {
+        // Intentar buscar enlace "Siguiente" o ">" en paginador
+        if (!preg_match('/<a[^>]+href=["\']([^"\']+)["\'][^>]*>(?:\s*(?:Siguiente|›|&rsaquo;|&gt;|»)\s*)<\/a>/i', $html, $m)) {
+            return null;
+        }
+    }
+    $href = $m[1] ?: $m[2];
+    if (empty($href) || $href === '#') return null;
+    if (strpos($href, 'http') === 0) return $href;
+    $base = parse_url($currentUrl, PHP_URL_SCHEME) . '://' . parse_url($currentUrl, PHP_URL_HOST);
+    return $base . $href;
+}
+
 function fetchCourseData() {
-    $cacheFile = sys_get_temp_dir() . '/feval_courses_cache.txt';
+    $cacheFile = sys_get_temp_dir() . '/feval_courses_v2_cache.txt';
     $cacheTTL  = 3600; // refresca cada hora
 
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTTL) {
@@ -196,69 +294,44 @@ function fetchCourseData() {
         if ($cached && strlen($cached) > 50) return $cached;
     }
 
-    $html = curlGet('https://formacionfeval.com/index.php/cursos-feval');
-    if (!$html) return null;
+    $startUrl = 'https://formacionfeval.com/index.php/cursos-feval';
+    $allCourses = [];
+    $visited    = [];
+    $url        = $startUrl;
+    $maxPages   = 8; // hasta 8 páginas de listado (70 cursos / ~10 por página)
 
-    libxml_use_internal_errors(true);
-    $dom = new DOMDocument();
-    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-    libxml_clear_errors();
-    $xpath = new DOMXPath($dom);
+    for ($page = 0; $page < $maxPages; $page++) {
+        if (isset($visited[$url])) break;
+        $visited[$url] = true;
 
-    // Eliminar scripts, estilos y navegación para limpiar el texto
-    foreach ($xpath->query('//script|//style|//nav|//header|//footer|//noscript') as $node) {
-        $node->parentNode->removeChild($node);
-    }
+        $html = curlGet($url);
+        if (!$html) break;
 
-    $lines   = [];
-    $seen    = [];
-
-    // Buscar artículos / bloques de curso típicos de Joomla
-    $blocks = $xpath->query(
-        '//article | //div[contains(@class,"item")] | //div[contains(@class,"curso")] | ' .
-        '//div[contains(@class,"cat-list")] | //div[contains(@class,"blog")] | ' .
-        '//div[contains(@class,"items-row")] | //td | //li[string-length(normalize-space(.))>20]'
-    );
-
-    foreach ($blocks as $block) {
-        $raw = preg_replace('/\s+/', ' ', trim($block->textContent));
-        // Filtrar bloques que contengan info relevante (fecha, horario, inscripción, curso…)
-        if (
-            strlen($raw) > 15 && strlen($raw) < 1500 &&
-            preg_match('/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|inicio|fin\b|horario|fecha|inscripci|plaza|convocatoria|\d{1,2}h\b/iu', $raw)
-        ) {
-            $key = md5($raw);
-            if (!isset($seen[$key])) {
-                $seen[$key] = true;
-                $lines[] = $raw;
+        $courses = extractCoursesFromPage($html);
+        foreach ($courses as $c) {
+            $key = md5($c['titulo']);
+            if (!isset($allCourses[$key])) {
+                $allCourses[$key] = $c;
             }
         }
+
+        $next = getNextPageUrl($html, $url);
+        if (!$next || $next === $url) break;
+        $url = $next;
     }
 
-    // Si no encontramos nada con los selectores, caer a búsqueda por líneas en el body
-    if (empty($lines)) {
-        $body = $xpath->query('//body');
-        if ($body->length > 0) {
-            foreach (explode("\n", $body->item(0)->textContent) as $line) {
-                $line = trim(preg_replace('/\s+/', ' ', $line));
-                if (
-                    strlen($line) > 15 && strlen($line) < 400 &&
-                    preg_match('/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|inicio|fin\b|horario|fecha|inscripci|plaza/iu', $line)
-                ) {
-                    $key = md5($line);
-                    if (!isset($seen[$key])) {
-                        $seen[$key] = true;
-                        $lines[] = $line;
-                    }
-                }
-            }
-        }
-    }
+    if (empty($allCourses)) return null;
 
-    if (empty($lines)) return null;
+    // Formatear para el modelo de IA
+    $lines = [];
+    foreach ($allCourses as $c) {
+        $line = '- ' . $c['titulo'] . ': ' . $c['info'];
+        if ($c['url']) $line .= ' [' . $c['url'] . ']';
+        $lines[] = $line;
+    }
 
     $result = implode("\n", $lines);
-    $result = mb_substr($result, 0, 6000); // máx 6.000 caracteres al modelo
+    $result = mb_substr($result, 0, 9000); // máx 9.000 caracteres al modelo
 
     file_put_contents($cacheFile, $result);
     return $result;
