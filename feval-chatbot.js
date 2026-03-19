@@ -133,10 +133,12 @@
     '- Ayuda: https://formacionfeval.com/index.php/ayuda',
     '- Contacto web: https://formacionfeval.com/index.php/contacto',
     '',
-    '=== REGLAS ===',
-    '⚠️ Usa SOLO la información de este prompt (incluyendo la sección DATOS EN TIEMPO REAL si está presente). No inventes datos.',
-    '⚠️ Si el dato que pide el usuario NO está en este prompt, di simplemente: "No tengo ese dato. Consúltalo en https://formacionfeval.com/index.php/cursos-feval o llama al 924 829 100."',
-    '⚠️ PROHIBIDO crear listas con campos "No se especifica", "No se proporciona" o similares. Si no tienes un dato, no lo menciones.',
+    '=== REGLAS OBLIGATORIAS ===',
+    '1. Responde SOLO con datos que aparezcan literalmente en este prompt. PROHIBIDO inventar o deducir información.',
+    '2. NUNCA pongas campos con valor "No se especifica", "No se proporciona", "No disponible" o similar. Si no tienes el dato, NO lo menciones en absoluto.',
+    '3. NUNCA inventes descripciones de cursos. Si no hay descripción en el prompt, no pongas ninguna.',
+    '4. Si el usuario pregunta algo que no está en el prompt, responde solo: "No tengo ese dato. Consúltalo en https://formacionfeval.com/index.php/cursos-feval o llama al 924 829 100."',
+    '5. Escribe las URLs en texto plano, SIN guiones bajos ni asteriscos alrededor.',
     '',
     '=== REGLAS DE COMPORTAMIENTO ===',
     '- Responde SIEMPRE en español',
@@ -430,6 +432,9 @@
 
   function applyInline(text) {
     return text
+      .replace(/__(https?:\/\/[^\s_]+)__/g, function(m, url) {
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+      })
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/__(.*?)__/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
