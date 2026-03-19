@@ -402,15 +402,7 @@ function fetchCourseData() {
     return $result;
 }
 
-// Inyectar datos en tiempo real en el system prompt
-$live_data = fetchCourseData();
-if ($live_data) {
-    $system_prompt .=
-        "\n\n=== DATOS EN TIEMPO REAL — FECHAS Y HORARIOS (extraídos ahora de formacionfeval.com) ===\n" .
-        "Usa estos datos cuando el usuario pregunte por fechas, horarios o disponibilidad de cursos.\n" .
-        "Si un dato no aparece aquí, indica que puede consultar la web o llamar al 924 829 100.\n\n" .
-        $live_data;
-}
+// Scraper desactivado: los datos del catálogo ya están en el system prompt del JS
 
 // ─── Llamar al backend ────────────────────────────────────────────────────────
 
