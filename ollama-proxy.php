@@ -285,8 +285,60 @@ function getNextPageUrl($html, $currentUrl) {
     return $base . $href;
 }
 
+/**
+ * Extrae el texto limpio del contenido principal de una página de curso individual.
+ * Funciona con Event Booking, artículos Joomla y cualquier otro layout.
+ */
+function extractCourseDetail($html, $baseUrl = 'https://formacionfeval.com') {
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+    libxml_clear_errors();
+    $xpath = new DOMXPath($dom);
+
+    // Eliminar ruido
+    foreach ($xpath->query('//script|//style|//nav|//header|//footer|//noscript|//form|//aside|//*[contains(@class,"menu")]|//*[contains(@class,"breadcrumb")]|//*[contains(@id,"menu")]') as $node) {
+        if ($node->parentNode) $node->parentNode->removeChild($node);
+    }
+
+    // Intentar encontrar el contenido principal
+    $selectors = [
+        '//*[contains(@class,"eb_event_description")]',
+        '//*[contains(@class,"event-description")]',
+        '//*[contains(@class,"item-page")]',
+        '//*[contains(@class,"article-content")]',
+        '//*[contains(@class,"com_eventbooking")]',
+        '//main',
+        '//*[@id="content"]',
+        '//*[contains(@class,"content")]',
+        '//article',
+    ];
+
+    $contentNode = null;
+    foreach ($selectors as $sel) {
+        $nodes = $xpath->query($sel);
+        if ($nodes->length > 0) {
+            $contentNode = $nodes->item(0);
+            break;
+        }
+    }
+
+    if (!$contentNode) {
+        $contentNode = $xpath->query('//body')->item(0);
+    }
+    if (!$contentNode) return '';
+
+    // Limpiar texto: colapsar espacios, preservar saltos de línea significativos
+    $text = $contentNode->textContent;
+    $text = preg_replace('/[ \t]+/', ' ', $text);
+    $text = preg_replace('/\n{3,}/', "\n\n", $text);
+    $text = trim($text);
+
+    return mb_substr($text, 0, 1500); // máx 1500 chars por curso
+}
+
 function fetchCourseData() {
-    $cacheFile = sys_get_temp_dir() . '/feval_courses_v2_cache.txt';
+    $cacheFile = sys_get_temp_dir() . '/feval_courses_v3_cache.txt';
     $cacheTTL  = 3600; // refresca cada hora
 
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTTL) {
@@ -298,8 +350,9 @@ function fetchCourseData() {
     $allCourses = [];
     $visited    = [];
     $url        = $startUrl;
-    $maxPages   = 8; // hasta 8 páginas de listado (70 cursos / ~10 por página)
+    $maxPages   = 8;
 
+    // 1. Recopilar todos los cursos del listado (título + URL básica)
     for ($page = 0; $page < $maxPages; $page++) {
         if (isset($visited[$url])) break;
         $visited[$url] = true;
@@ -322,16 +375,28 @@ function fetchCourseData() {
 
     if (empty($allCourses)) return null;
 
-    // Formatear para el modelo de IA
+    // 2. Para cada curso con URL, entrar en su página individual y extraer detalle
     $lines = [];
     foreach ($allCourses as $c) {
-        $line = '- ' . $c['titulo'] . ': ' . $c['info'];
-        if ($c['url']) $line .= ' [' . $c['url'] . ']';
+        $line = '### ' . $c['titulo'];
+        if ($c['info']) $line .= "\n" . $c['info'];
+
+        if (!empty($c['url'])) {
+            $detailHtml = curlGet($c['url']);
+            if ($detailHtml) {
+                $detail = extractCourseDetail($detailHtml);
+                if ($detail) {
+                    $line .= "\n" . $detail;
+                }
+            }
+            $line .= "\nURL: " . $c['url'];
+        }
+
         $lines[] = $line;
     }
 
-    $result = implode("\n", $lines);
-    $result = mb_substr($result, 0, 9000); // máx 9.000 caracteres al modelo
+    $result = implode("\n\n---\n\n", $lines);
+    $result = mb_substr($result, 0, 12000); // máx 12.000 chars
 
     file_put_contents($cacheFile, $result);
     return $result;
