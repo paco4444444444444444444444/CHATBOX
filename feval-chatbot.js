@@ -288,16 +288,16 @@
     '.feval-msg-body{max-width:92%;display:flex;flex-direction:column;gap:4px;}',
     '.feval-msg.user .feval-msg-body{align-items:flex-end;}',
     '.feval-msg-bubble{',
-      'padding:14px 18px;border-radius:18px;',
-      'font-size:14.5px;line-height:1.75;word-break:break-word;',
+      'padding:16px 22px;border-radius:18px;',
+      'font-size:14.5px;line-height:1.8;word-break:break-word;',
     '}',
-    '.feval-msg-bubble p{margin:0 0 8px;}',
+    '.feval-msg-bubble p{margin:0 0 10px;}',
     '.feval-msg-bubble p:last-child{margin-bottom:0;}',
 
-    /* Listas — estilo nativo, sin círculos */
-    '.feval-msg-bubble ol{margin:8px 0 8px 22px;padding:0;list-style-type:decimal;}',
-    '.feval-msg-bubble ul{margin:8px 0 8px 20px;padding:0;list-style-type:disc;}',
-    '.feval-msg-bubble ol li,.feval-msg-bubble ul li{padding:3px 0;line-height:1.75;}',
+    /* Listas — numeración nativa, sin círculos, con espacio */
+    '.feval-msg-bubble ol{margin:10px 0 10px 24px;padding:0;list-style-type:decimal;}',
+    '.feval-msg-bubble ul{margin:10px 0 10px 22px;padding:0;list-style-type:disc;}',
+    '.feval-msg-bubble ol li,.feval-msg-bubble ul li{padding:4px 0;line-height:1.8;}',
 
     '.feval-msg.assistant .feval-msg-bubble{',
       'background:#f1f5f9;color:#1e293b;',
