@@ -294,44 +294,43 @@
     '.feval-msg-bubble p{margin:0 0 10px;}',
     '.feval-msg-bubble p:last-child{margin-bottom:0;}',
 
-    /* Listas sin bullets nativos — control total */
-    '.feval-msg-bubble ol{list-style:none;counter-reset:feval-c;margin:10px 0 4px;padding:0;}',
-    '.feval-msg-bubble ul{list-style:none;margin:10px 0 4px;padding:0;}',
+    /* Listas — flexbox: imposible que el número tape el texto */
+    '.feval-msg-bubble ol{list-style:none;counter-reset:feval-c;margin:12px 0 6px;padding:0;}',
+    '.feval-msg-bubble ul{list-style:none;margin:12px 0 6px;padding:0;}',
 
-    /* Cada ítem de lista numerada */
+    /* Ítem numerado: flex row — círculo | texto */
     '.feval-msg-bubble ol li{',
       'counter-increment:feval-c;',
-      'position:relative;padding:9px 0 9px 34px;',
+      'display:flex;align-items:flex-start;gap:10px;',
+      'padding:8px 0;',
       'border-bottom:1px solid rgba(0,0,0,0.07);',
-      'line-height:1.55;',
     '}',
-    '.feval-msg-bubble ol li:last-child{border-bottom:none;padding-bottom:4px;}',
+    '.feval-msg-bubble ol li:last-child{border-bottom:none;padding-bottom:2px;}',
     '.feval-msg-bubble ol li::before{',
       'content:counter(feval-c);',
-      'position:absolute;left:0;top:9px;',
-      'width:22px;height:22px;border-radius:50%;',
+      'display:inline-flex;align-items:center;justify-content:center;',
+      'min-width:22px;width:22px;height:22px;border-radius:50%;',
       'background:#16a34a;color:#fff;',
-      'font-size:11px;font-weight:700;',
-      'text-align:center;line-height:22px;',
+      'font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px;',
     '}',
 
-    /* Cada ítem de lista con viñeta */
+    /* Ítem con viñeta */
     '.feval-msg-bubble ul li{',
-      'position:relative;padding:7px 0 7px 18px;',
+      'display:flex;align-items:flex-start;gap:10px;',
+      'padding:8px 0;',
       'border-bottom:1px solid rgba(0,0,0,0.07);',
-      'line-height:1.55;',
     '}',
-    '.feval-msg-bubble ul li:last-child{border-bottom:none;padding-bottom:4px;}',
+    '.feval-msg-bubble ul li:last-child{border-bottom:none;padding-bottom:2px;}',
     '.feval-msg-bubble ul li::before{',
-      'content:"";position:absolute;left:2px;top:16px;',
-      'width:7px;height:7px;border-radius:50%;background:#16a34a;',
+      'content:"•";color:#16a34a;font-size:20px;',
+      'line-height:1.1;flex-shrink:0;',
     '}',
 
-    /* Ajustes para burbuja de USUARIO (fondo verde oscuro) */
+    /* Ajustes burbuja USUARIO */
     '.feval-msg.user .feval-msg-bubble ol li{border-bottom-color:rgba(255,255,255,0.15);}',
-    '.feval-msg.user .feval-msg-bubble ol li::before{background:rgba(255,255,255,0.25);color:#fff;}',
+    '.feval-msg.user .feval-msg-bubble ol li::before{background:rgba(255,255,255,0.25);}',
     '.feval-msg.user .feval-msg-bubble ul li{border-bottom-color:rgba(255,255,255,0.15);}',
-    '.feval-msg.user .feval-msg-bubble ul li::before{background:rgba(255,255,255,0.6);}',
+    '.feval-msg.user .feval-msg-bubble ul li::before{color:rgba(255,255,255,0.7);}',
 
     '.feval-msg.assistant .feval-msg-bubble{',
       'background:#f1f5f9;color:#1e293b;',
