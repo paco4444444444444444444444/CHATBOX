@@ -167,6 +167,113 @@ if (empty($clean_messages)) {
     exit;
 }
 
+// ─── Scraping de fechas y horarios en tiempo real ─────────────────────────────
+
+function curlGet($url, $timeout = 15) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => $timeout,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS      => 5,
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; FevalChatbot/1.0)',
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_ENCODING       => 'utf-8',
+    ]);
+    $body = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return ($body && $code === 200) ? $body : null;
+}
+
+function fetchCourseData() {
+    $cacheFile = sys_get_temp_dir() . '/feval_courses_cache.txt';
+    $cacheTTL  = 3600; // refresca cada hora
+
+    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTTL) {
+        $cached = file_get_contents($cacheFile);
+        if ($cached && strlen($cached) > 50) return $cached;
+    }
+
+    $html = curlGet('https://formacionfeval.com/index.php/cursos-feval');
+    if (!$html) return null;
+
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+    libxml_clear_errors();
+    $xpath = new DOMXPath($dom);
+
+    // Eliminar scripts, estilos y navegación para limpiar el texto
+    foreach ($xpath->query('//script|//style|//nav|//header|//footer|//noscript') as $node) {
+        $node->parentNode->removeChild($node);
+    }
+
+    $lines   = [];
+    $seen    = [];
+
+    // Buscar artículos / bloques de curso típicos de Joomla
+    $blocks = $xpath->query(
+        '//article | //div[contains(@class,"item")] | //div[contains(@class,"curso")] | ' .
+        '//div[contains(@class,"cat-list")] | //div[contains(@class,"blog")] | ' .
+        '//div[contains(@class,"items-row")] | //td | //li[string-length(normalize-space(.))>20]'
+    );
+
+    foreach ($blocks as $block) {
+        $raw = preg_replace('/\s+/', ' ', trim($block->textContent));
+        // Filtrar bloques que contengan info relevante (fecha, horario, inscripción, curso…)
+        if (
+            strlen($raw) > 15 && strlen($raw) < 1500 &&
+            preg_match('/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|inicio|fin\b|horario|fecha|inscripci|plaza|convocatoria|\d{1,2}h\b/iu', $raw)
+        ) {
+            $key = md5($raw);
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $lines[] = $raw;
+            }
+        }
+    }
+
+    // Si no encontramos nada con los selectores, caer a búsqueda por líneas en el body
+    if (empty($lines)) {
+        $body = $xpath->query('//body');
+        if ($body->length > 0) {
+            foreach (explode("\n", $body->item(0)->textContent) as $line) {
+                $line = trim(preg_replace('/\s+/', ' ', $line));
+                if (
+                    strlen($line) > 15 && strlen($line) < 400 &&
+                    preg_match('/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|inicio|fin\b|horario|fecha|inscripci|plaza/iu', $line)
+                ) {
+                    $key = md5($line);
+                    if (!isset($seen[$key])) {
+                        $seen[$key] = true;
+                        $lines[] = $line;
+                    }
+                }
+            }
+        }
+    }
+
+    if (empty($lines)) return null;
+
+    $result = implode("\n", $lines);
+    $result = mb_substr($result, 0, 6000); // máx 6.000 caracteres al modelo
+
+    file_put_contents($cacheFile, $result);
+    return $result;
+}
+
+// Inyectar datos en tiempo real en el system prompt
+$live_data = fetchCourseData();
+if ($live_data) {
+    $system_prompt .=
+        "\n\n=== DATOS EN TIEMPO REAL — FECHAS Y HORARIOS (extraídos ahora de formacionfeval.com) ===\n" .
+        "Usa estos datos cuando el usuario pregunte por fechas, horarios o disponibilidad de cursos.\n" .
+        "Si un dato no aparece aquí, indica que puede consultar la web o llamar al 924 829 100.\n\n" .
+        $live_data;
+}
+
 // ─── Llamar al backend ────────────────────────────────────────────────────────
 
 function curlPost($url, $headers, $payload, $timeout = 30) {
