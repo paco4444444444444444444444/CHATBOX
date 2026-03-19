@@ -151,13 +151,13 @@
     '- Si el usuario parece frustrado o tiene un problema urgente (plaza, acceso, diploma), prioriza darle el contacto directo'
   ].join('\n');
 
-  var WELCOME_MESSAGE = '¡Hola! 👋 Soy el asistente virtual de FEVAL. Puedo ayudarte con información sobre nuestros 70 cursos TIC gratuitos del Plan Formativo 2026. ¿En qué puedo ayudarte?';
+  var WELCOME_MESSAGE = '¡Hola! 👋 ¿En qué puedo ayudarte? Pregúntame sobre cursos, cómo inscribirte, diplomas o cualquier duda sobre la formación.';
 
   var QUICK_REPLIES = [
-    { label: '📚 Ver cursos disponibles',  text: '¿Qué cursos están disponibles en el Plan Formativo 2026?' },
-    { label: '📝 ¿Cómo inscribirse?',      text: '¿Cómo puedo inscribirme en un curso de FEVAL?' },
-    { label: '🎓 Áreas de formación',      text: '¿Cuáles son las áreas temáticas de formación disponibles?' },
-    { label: '📞 Contactar con FEVAL',     text: '¿Cómo puedo contactar con FEVAL Formación?' }
+    { label: '📚 Cursos disponibles',   text: '¿Qué cursos hay disponibles?' },
+    { label: '📝 Cómo inscribirse',     text: '¿Cómo me inscribo en un curso?' },
+    { label: '🏆 Selección y baremo',   text: '¿Cómo funciona la selección de alumnos y el baremo?' },
+    { label: '🎓 Diplomas y títulos',   text: '¿Qué diplomas o certificaciones se obtienen al terminar un curso?' }
   ];
 
   // ─── Estado ───────────────────────────────────────────────────────────────
@@ -289,6 +289,12 @@
       'padding:12px 16px;border-radius:18px;',
       'font-size:14px;line-height:1.6;word-break:break-word;',
     '}',
+    '.feval-msg-bubble p{margin:0 0 6px;}',
+    '.feval-msg-bubble p:last-child{margin-bottom:0;}',
+    '.feval-msg-bubble ul,.feval-msg-bubble ol{margin:4px 0 6px;padding-left:20px;}',
+    '.feval-msg-bubble li{margin-bottom:4px;line-height:1.5;}',
+    '.feval-msg-bubble li:last-child{margin-bottom:0;}',
+    '.feval-msg.user .feval-msg-bubble ul,.feval-msg.user .feval-msg-bubble ol{color:#fff;}',
     '.feval-msg.assistant .feval-msg-bubble{',
       'background:#f1f5f9;color:#1e293b;',
       'border-bottom-left-radius:5px;',
@@ -373,14 +379,28 @@
     '.feval-error-msg svg{width:16px;height:16px;fill:#ef4444;flex-shrink:0;margin-top:1px;}',
     '.feval-retry-link{color:#1a56a0;cursor:pointer;text-decoration:underline;display:inline-block;margin-top:4px;}',
 
-    /* Responsive – móvil */
-    '@media(max-width:479px){',
+    /* Responsive – tablet/móvil (≤ 640px): bottom sheet */
+    '@media(max-width:640px){',
       '#feval-chat-window{',
-        'width:100%;height:100%;',
-        'bottom:0;right:0;',
-        'border-radius:0;',
+        'width:100%;height:82dvh;height:82vh;',
+        'bottom:0;right:0;left:0;',
+        'border-radius:20px 20px 0 0;',
+        'padding-bottom:env(safe-area-inset-bottom,0px);',
       '}',
       '#feval-chat-btn{bottom:16px;right:16px;}',
+      '#feval-input-area{',
+        'padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));',
+      '}',
+      '.feval-qr-btn{font-size:13px;padding:8px 13px;}',
+      '#feval-textarea{font-size:16px;}', /* evita zoom en iOS */
+    '}',
+    /* Muy pequeño (≤ 400px): pantalla completa */
+    '@media(max-width:400px){',
+      '#feval-chat-window{',
+        'height:100dvh;height:100vh;',
+        'border-radius:0;',
+        'padding-top:env(safe-area-inset-top,0px);',
+      '}',
     '}',
   ].join('');
 
@@ -402,13 +422,45 @@
       .replace(/"/g, '&quot;');
   }
 
-  function formatText(text) {
-    // Simple markdown-lite: bold, links, line breaks
-    return escapeHtml(text)
+  function applyInline(text) {
+    return text
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
-      .replace(/\n/g, '<br>');
+      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  }
+
+  function formatText(text) {
+    var lines = escapeHtml(text).split('\n');
+    var html = '';
+    var inUl = false;
+    var inOl = false;
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var isBullet  = /^[-•*] /.test(line);
+      var isNumbered = /^\d+[.)]\s/.test(line);
+
+      if (isBullet) {
+        if (inOl) { html += '</ol>'; inOl = false; }
+        if (!inUl) { html += '<ul>'; inUl = true; }
+        html += '<li>' + applyInline(line.replace(/^[-•*] /, '').trim()) + '</li>';
+      } else if (isNumbered) {
+        if (inUl) { html += '</ul>'; inUl = false; }
+        if (!inOl) { html += '<ol>'; inOl = true; }
+        html += '<li>' + applyInline(line.replace(/^\d+[.)]\s/, '').trim()) + '</li>';
+      } else {
+        if (inUl) { html += '</ul>'; inUl = false; }
+        if (inOl) { html += '</ol>'; inOl = false; }
+        if (line.trim() === '') {
+          html += '<br>';
+        } else {
+          html += '<p>' + applyInline(line) + '</p>';
+        }
+      }
+    }
+    if (inUl) html += '</ul>';
+    if (inOl) html += '</ol>';
+    return html;
   }
 
   function formatTime(date) {
@@ -490,14 +542,14 @@
     // Validar configuración según backend
     if (BACKEND === 'claude' && !API_KEY) {
       renderMessage('assistant',
-        'El chat no está disponible en este momento. Para asistencia, contacta con nosotros en formacion@feval.com o llama al 924 82 91 00.',
+        'El chat no está disponible en este momento. Contacta con nosotros: formacion@feval.com · 924 829 100.',
         true
       );
       return;
     }
     if (BACKEND === 'proxy' && !PROXY_URL) {
       renderMessage('assistant',
-        'El chat no está configurado correctamente (falta PROXY_URL). Contacta con formacion@feval.com.',
+        'El chat no está configurado correctamente. Contacta con formacion@feval.com.',
         true
       );
       return;
@@ -588,7 +640,7 @@
         }
 
         if (!assistantText) {
-          assistantText = 'Lo siento, no pude procesar tu consulta. Por favor, inténtalo de nuevo o contacta con nosotros en formacion@feval.com.';
+          assistantText = 'No pude procesar la respuesta. Inténtalo de nuevo o contacta con nosotros: formacion@feval.com · 924 829 100.';
         }
 
         conversationHistory.push({ role: 'assistant', content: assistantText });
@@ -611,21 +663,19 @@
 
         var msg;
         if (err.name === 'AbortError') {
-          msg = 'La solicitud tardó demasiado (' + (REQUEST_TIMEOUT_MS / 1000) + 's). Si usas Ollama, puede que el modelo esté cargando por primera vez. ';
+          msg = 'La respuesta tardó demasiado. Inténtalo de nuevo en unos segundos. ';
         } else if (err.message && err.message.indexOf('API_ERROR:') === 0) {
           var parts = err.message.split(':');
           var status = parseInt(parts[1]);
-          if (status === 401) {
-            msg = 'La clave de API no es válida. ';
-          } else if (status === 429) {
-            msg = 'Demasiadas solicitudes. Espera un momento y vuelve a intentarlo. ';
+          if (status === 429) {
+            msg = 'Demasiadas solicitudes seguidas. Espera un momento y vuelve a intentarlo. ';
           } else if (status === 502 || status === 503) {
-            msg = 'El servidor de IA no está disponible. Comprueba que Ollama esté ejecutándose. ';
+            msg = 'El servicio no está disponible en este momento. ';
           } else {
-            msg = 'Error al conectar con el asistente (' + status + '). ';
+            msg = 'Error de conexión (' + status + '). ';
           }
         } else {
-          msg = 'No se pudo conectar con el asistente. ';
+          msg = 'No se pudo establecer conexión con el asistente. ';
         }
 
         var errorDiv = renderMessage('assistant', msg, true);
@@ -651,7 +701,7 @@
       hideTyping();
       isLoading = false;
       setInputDisabled(false);
-      renderMessage('assistant', 'Error inesperado. Contacta con formacion@feval.com.', true);
+      renderMessage('assistant', 'Error inesperado. Contacta con nosotros: formacion@feval.com · 924 829 100.', true);
     }
   }
 
