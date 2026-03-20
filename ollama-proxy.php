@@ -125,6 +125,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+// ── Endpoint de diagnóstico (GET ?debug_scrape=1) — SOLO para depuración ──────
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['debug_scrape'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $internal_test = curlGet(rtrim($JOOMLA_INTERNAL_URL, '/') . '/index.php/cursos-feval', 8);
+    $public_test   = curlGet(rtrim($PUBLIC_URL, '/') . '/index.php/cursos-feval', 8);
+    $events        = getAllJoomlaEvents();
+    echo json_encode([
+        'internal_url'     => $JOOMLA_INTERNAL_URL,
+        'internal_ok'      => $internal_test !== null,
+        'internal_len'     => $internal_test ? strlen($internal_test) : 0,
+        'public_ok'        => $public_test !== null,
+        'public_len'       => $public_test ? strlen($public_test) : 0,
+        'events_found'     => count($events),
+        'events_sample'    => array_slice($events, 0, 5),
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // Solo POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
