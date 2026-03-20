@@ -367,6 +367,7 @@ function scrapeCoursesFromWeb($publicUrl) {
         $dom = new DOMDocument();
         $dom->loadHTML('<?xml encoding="utf-8" ?>' . $catHtml);
         libxml_clear_errors();
+        libxml_use_internal_errors(true); // mantener activo para los sub-DOMs
         $xpath = new DOMXPath($dom);
 
         // Nombre de la categoría desde el heading de la página
@@ -395,10 +396,42 @@ function scrapeCoursesFromWeb($publicUrl) {
                 }
             }
 
+            // Visitar la página del curso para obtener descripción/contenido
+            $description = '';
+            if ($href) {
+                $courseHtml = curlGet('http://localhost' . $href);
+                if ($courseHtml) {
+                    $cdom = new DOMDocument();
+                    $cdom->loadHTML('<?xml encoding="utf-8" ?>' . $courseHtml);
+                    libxml_clear_errors();
+                    $cxpath = new DOMXPath($cdom);
+
+                    // Buscar descripción en selectores habituales de Event Booking / Joomla
+                    $descSelectors = [
+                        '//*[contains(@class,"eb-event-description")]',
+                        '//*[contains(@class,"eb-event-detail-description")]',
+                        '//*[contains(@class,"event-description")]',
+                        '//div[contains(@class,"item-page")]//div[contains(@class,"article-fulltext")]',
+                        '//*[contains(@class,"eb-event-detail")]//p',
+                    ];
+                    foreach ($descSelectors as $sel) {
+                        $descNode = $cxpath->query($sel)->item(0);
+                        if ($descNode) {
+                            $text = trim(preg_replace('/\s+/', ' ', strip_tags($descNode->textContent)));
+                            if (mb_strlen($text) > 30) {
+                                $description = mb_substr($text, 0, 600);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             $fullUrl = rtrim($publicUrl, '/') . $href;
             $entry   = "- {$title}";
             if ($date) $entry .= " | Inicio: {$date}";
-            $entry .= " | Preinscripción: {$fullUrl}";
+            if ($description) $entry .= "\n  Descripción: {$description}";
+            $entry .= "\n  Preinscripción: {$fullUrl}";
             $events[] = $entry;
         }
 
