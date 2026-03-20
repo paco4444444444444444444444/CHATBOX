@@ -378,35 +378,53 @@ function getAllJoomlaEvents() {
     }
     $pagesToScan = array_unique($pagesToScan);
 
-    $events = [];
-    $seen   = [];
-    foreach ($pagesToScan as $path) {
+    $events   = [];
+    $seen     = [];
+    $queue    = $pagesToScan;
+    $visited  = [];
+
+    while (!empty($queue)) {
+        $path = array_shift($queue);
+        if (isset($visited[$path])) continue;
+        $visited[$path] = true;
+
         $html = ($path === '/index.php/cursos-feval') ? $mainHtml : joomlaGet($path);
         if (!$html) continue;
+
         libxml_use_internal_errors(true);
         $dom = new DOMDocument();
         $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
         libxml_clear_errors();
         $xp = new DOMXPath($dom);
+
+        // Recoger eventos de esta página
         foreach ($xp->query('//a[contains(@class,"eb-event-link")]') as $link) {
             $t = trim(preg_replace('/\s+/', ' ', $link->textContent));
             $h = $link->getAttribute('href');
             if ($t && $h && !isset($seen[$h])) {
                 $seen[$h]  = true;
-                $events[] = ['title' => $t, 'href' => $h];
+                $events[]  = ['title' => $t, 'href' => $h];
             }
         }
-        // También buscar subcategorías dentro de categorías (categorías anidadas)
+
+        // Seguir links de paginación (siguiente página de la misma categoría)
+        foreach ($xp->query('//a[contains(@class,"pagenav") or contains(@class,"next") or contains(@rel,"next")]') as $pgLink) {
+            $pgHref = $pgLink->getAttribute('href');
+            if ($pgHref && !isset($visited[$pgHref])) $queue[] = $pgHref;
+        }
+        // También buscar paginación por patrón ?start=N en los hrefs de la página
+        preg_match_all('/href="([^"]*\?[^"]*(?:start|limitstart)=\d+[^"]*)"/i', $html, $pgM);
+        foreach (array_unique($pgM[1] ?? []) as $pgPath) {
+            if (!isset($visited[$pgPath])) $queue[] = $pgPath;
+        }
+
+        // Subcategorías anidadas
         preg_match_all(
             '/<a\s[^>]*class="[^"]*eb-category-title-link[^"]*"[^>]*href="([^"]+)"|<a\s[^>]*href="([^"]+)"[^>]*class="[^"]*eb-category-title-link[^"]*"/i',
             $html, $sub
         );
         foreach (array_unique(array_filter(array_merge($sub[1] ?? [], $sub[2] ?? []))) as $subPath) {
-            if (!isset($seen['cat_' . $subPath])) {
-                $seen['cat_' . $subPath] = true;
-                $pagesToScan[] = $subPath;
-                $pagesToScan[] = $subPath . '?limitstart=0&limit=200';
-            }
+            if (!isset($visited[$subPath])) $queue[] = $subPath;
         }
     }
 
@@ -445,8 +463,8 @@ function findEventHref($courseName, $allEvents) {
         foreach ($keywords as $kw) {
             if (mb_strpos($evN, $kw) !== false) $hits++;
         }
-        // Requiere al menos el 80% de keywords (tolera 1 diferencia de nombre)
-        $minHits = max(1, (int)ceil(count($keywords) * 0.8));
+        // Tolera 1 keyword que no coincida (para nombres ligeramente distintos en Joomla)
+        $minHits = max(1, count($keywords) - 1);
         if ($hits >= $minHits && $hits > $bestScore) {
             $bestScore = $hits;
             $bestHref  = $ev['href'];
