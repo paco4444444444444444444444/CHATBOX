@@ -622,6 +622,35 @@ function coursesInConversation($messages, $catalog) {
     return $found;
 }
 
+// ── FAQ directas: respuestas fijas para preguntas frecuentes ─────────────────
+$faq_q = mb_strtolower(trim($last_user_msg));
+$faq_responses = [
+    // Gratuidad
+    ['keys' => ['gratis','gratuito','gratuita','precio','coste','cuesta','pagar','pago','financiaci'],
+     'answer' => "Todos los cursos son completamente **GRATUITOS**, incluyendo el examen oficial de certificación cuando el curso lo incluya. No hay ningún coste para el alumno. Están financiados por la Junta de Extremadura (Consejería de Economía, Empleo y Transformación Digital) y el **SEXPE** (Servicio Extremeño Público de Empleo)."],
+    // SEXPE
+    ['keys' => ['sexpe'],
+     'answer' => "El **SEXPE** (Servicio Extremeño Público de Empleo) es el organismo de la Junta de Extremadura que co-financia estos cursos gratuitos. Para consultas sobre tu situación laboral, prestaciones o subsidios, contacta con tu Centro de Empleo más cercano — FEVAL no tiene acceso al sistema SEXPE."],
+    // FEVAL
+    ['keys' => ['feval','quién organiza','quien organiza'],
+     'answer' => "**FEVAL Formación** es la plataforma de formación TIC de la Institución Ferial de Extremadura. Ofrecemos más de 70 cursos TIC gratuitos en 2026, financiados por la Junta de Extremadura y el SEXPE."],
+    // Diploma / certificado
+    ['keys' => ['diploma','certificado','título','titulo','acreditaci'],
+     'answer' => "Cada curso incluye un **diploma de aprovechamiento** expedido por el SEXPE al superar el curso. En los cursos con certificación oficial (Cisco, Microsoft, EC-Council, etc.) el examen está incluido sin coste adicional. La firma oficial del diploma SEXPE puede tardar varios meses tras finalizar el curso."],
+    // Preinscripción
+    ['keys' => ['preinscripci','inscripci','apuntar','apuntarme','solicitar','registro'],
+     'answer' => "Para preinscribirte, accede al catálogo de cursos en: " . rtrim($PUBLIC_URL, '/') . "/index.php/cursos-feval\n\nEntra en el curso que te interesa y pulsa el botón de preinscripción. Para cursos de **desempleados** se aplica la baremación oficial del SEXPE. Para cursos de **empleados** se tramita a través de la empresa (FUNDAE/crédito formativo)."],
+];
+foreach ($faq_responses as $faq) {
+    foreach ($faq['keys'] as $key) {
+        if (mb_strpos($faq_q, $key) !== false) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['content' => [['type' => 'text', 'text' => $faq['answer']]]]);
+            exit;
+        }
+    }
+}
+
 // ── Búsqueda con contexto conversacional completo ────────────────────────────
 $context_catalog = coursesInConversation($clean_messages, $DIRECT_CATALOG);
 
