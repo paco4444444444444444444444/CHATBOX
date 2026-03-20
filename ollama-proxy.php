@@ -315,8 +315,9 @@ function curlGet($url, $timeout = 15) {
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS      => 5,
         CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; FevalChatbot/1.0)',
-        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYPEER => false, // localhost usa HTTP, no SSL
         CURLOPT_ENCODING       => 'utf-8',
+        CURLOPT_PROXY          => '',    // no usar proxies (localhost accesible directo)
     ]);
     $body = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
