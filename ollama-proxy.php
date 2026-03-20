@@ -257,13 +257,26 @@ $DIRECT_CATALOG = [
  */
 function searchCatalog($query, $catalog) {
     $q = mb_strtolower($query);
-    // Palabras a ignorar
-    $stop = ['curso','cursos','hay','sobre','para','el','la','los','las','de','que','del','al','un','una','en','con','por','hay',
-             'información','informacion','dame','quiero','saber','ver','dime','datos','dato','cuáles','cuales','existe','existe',
+
+    // ── Paso 1: coincidencia exacta de nombre completo ────────────────────────
+    // Si el nombre completo de un curso aparece literalmente en la consulta,
+    // devolvemos solo ese/esos cursos (evita falsos positivos por palabras sueltas).
+    $exactMatches = [];
+    foreach ($catalog as $c) {
+        if (mb_strpos($q, mb_strtolower($c['nombre'])) !== false) {
+            $exactMatches[] = $c;
+        }
+    }
+    if (!empty($exactMatches)) return $exactMatches;
+
+    // ── Paso 2: búsqueda por palabras clave ───────────────────────────────────
+    $stop = ['curso','cursos','hay','sobre','para','el','la','los','las','de','que','del','al','un','una','en','con','por',
+             'información','informacion','dame','quiero','saber','ver','dime','datos','dato','cuáles','cuales',
              'tienes','tiene','puedes','puedo','algún','algun','más','mas'];
-    $words = array_filter(explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $q)), function($w) use ($stop) {
-        return mb_strlen($w) > 2 && !in_array($w, $stop);
-    });
+    $words = array_values(array_filter(
+        explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $q)),
+        fn($w) => mb_strlen($w) > 2 && !in_array($w, $stop)
+    ));
     if (empty($words)) return null;
 
     $matches = [];
