@@ -300,6 +300,31 @@ function searchCatalog($query, $catalog, $strict = false) {
     return count($matches) > 0 ? $matches : null;
 }
 
+/** Extrae texto de un nodo DOM preservando párrafos y listas. */
+function extractNodeText($node) {
+    $text = '';
+    foreach ($node->childNodes as $child) {
+        $tag = strtolower($child->nodeName ?? '');
+        if (in_array($tag, ['ul','ol'])) {
+            foreach ($child->childNodes as $li) {
+                if (strtolower($li->nodeName) === 'li') {
+                    $t = trim(strip_tags($li->textContent));
+                    if ($t) $text .= "• {$t}\n";
+                }
+            }
+            $text .= "\n";
+        } elseif (in_array($tag, ['p','h2','h3','h4','h5','div'])) {
+            $t = trim(strip_tags($child->textContent));
+            if ($t) $text .= "{$t}\n\n";
+        }
+    }
+    $text = trim(preg_replace('/\n{3,}/', "\n\n", $text));
+    if (mb_strlen($text) < 10) {
+        $text = trim(preg_replace('/\s+/', ' ', strip_tags($node->textContent)));
+    }
+    return $text;
+}
+
 /**
  * Devuelve ['text' => string, 'url' => string] o null.
  *
@@ -371,45 +396,18 @@ function fetchCourseDetails($courseName) {
             libxml_clear_errors();
             $xp = new DOMXPath($dom);
 
-            $selectors = [
-                '//*[contains(@class,"eb-event-description")]',
-                '//*[contains(@class,"eb-event-detail-description")]',
-                '//*[contains(@class,"event-description")]',
-                '//*[contains(@class,"eb-custom-field")]',
-                '//div[contains(@class,"item-page")]//div[contains(@class,"article-fulltext")]',
-                '//*[contains(@class,"eb-event-detail")]',
-                '//div[contains(@class,"item-page")]',
-                '//main//article',
-            ];
-
-            foreach ($selectors as $sel) {
-                $node = $xp->query($sel)->item(0);
-                if (!$node) continue;
-
-                $text = '';
-                foreach ($node->childNodes as $child) {
-                    $tag = strtolower($child->nodeName ?? '');
-                    if (in_array($tag, ['ul','ol'])) {
-                        foreach ($child->childNodes as $li) {
-                            if (strtolower($li->nodeName) === 'li') {
-                                $t = trim(strip_tags($li->textContent));
-                                if ($t) $text .= "• {$t}\n";
-                            }
-                        }
-                        $text .= "\n";
-                    } elseif (in_array($tag, ['p','h2','h3','h4','h5'])) {
-                        $t = trim(strip_tags($child->textContent));
-                        if ($t) $text .= "{$t}\n\n";
-                    }
+            // Combinar eb-description + eb-description-details (clases reales de este Joomla)
+            $textParts = [];
+            foreach (['//*[contains(@class,"eb-description")]', '//*[contains(@class,"eb-description-details")]'] as $sel) {
+                $nodes = $xp->query($sel);
+                for ($ni = 0; $ni < $nodes->length; $ni++) {
+                    $node = $nodes->item($ni);
+                    $t = extractNodeText($node);
+                    if (mb_strlen($t) > 10) $textParts[] = $t;
                 }
-                $text = trim(preg_replace('/\n{3,}/', "\n\n", $text));
-                if (mb_strlen($text) < 30) {
-                    $text = trim(preg_replace('/\s+/', ' ', strip_tags($node->textContent)));
-                }
-                if (mb_strlen($text) > 30) {
-                    $fullText = mb_substr($text, 0, 3000);
-                    break;
-                }
+            }
+            if (!empty($textParts)) {
+                $fullText = mb_substr(implode("\n\n", $textParts), 0, 3000);
             }
         }
     }
@@ -604,23 +602,17 @@ function scrapeCoursesFromWeb($publicUrl) {
                     libxml_clear_errors();
                     $cxpath = new DOMXPath($cdom);
 
-                    // Buscar descripción en selectores habituales de Event Booking / Joomla
-                    $descSelectors = [
-                        '//*[contains(@class,"eb-event-description")]',
-                        '//*[contains(@class,"eb-event-detail-description")]',
-                        '//*[contains(@class,"event-description")]',
-                        '//div[contains(@class,"item-page")]//div[contains(@class,"article-fulltext")]',
-                        '//*[contains(@class,"eb-event-detail")]//p',
-                    ];
-                    foreach ($descSelectors as $sel) {
-                        $descNode = $cxpath->query($sel)->item(0);
-                        if ($descNode) {
-                            $text = trim(preg_replace('/\s+/', ' ', strip_tags($descNode->textContent)));
-                            if (mb_strlen($text) > 30) {
-                                $description = mb_substr($text, 0, 600);
-                                break;
-                            }
+                    // Clases reales de este Event Booking: eb-description + eb-description-details
+                    $descParts = [];
+                    foreach (['//*[contains(@class,"eb-description")]', '//*[contains(@class,"eb-description-details")]'] as $dsel) {
+                        $dnodes = $cxpath->query($dsel);
+                        for ($di = 0; $di < $dnodes->length; $di++) {
+                            $t = trim(preg_replace('/\s+/', ' ', strip_tags($dnodes->item($di)->textContent)));
+                            if (mb_strlen($t) > 10) $descParts[] = $t;
                         }
+                    }
+                    if (!empty($descParts)) {
+                        $description = mb_substr(implode(' | ', $descParts), 0, 600);
                     }
                 }
             }
