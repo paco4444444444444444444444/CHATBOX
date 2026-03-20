@@ -328,92 +328,88 @@ function extractNodeText($node) {
 /**
  * Devuelve ['text' => string, 'url' => string] o null.
  *
- * Estrategia:
- *  1. Caché JSON propia (10 min).
- *  2. Parsear el caché de scraping (/tmp/feval_live_v1.txt) para URL + descripción.
- *  3. Visitar la página del curso (vía localhost) para extraer contenido completo.
+ * Busca el curso DIRECTAMENTE en las páginas de categorías de Joomla usando
+ * matching EXACTO del título del enlace — evita errores de la caché de scraping.
  */
 function fetchCourseDetails($courseName) {
     global $PUBLIC_URL;
-    $detailCache = sys_get_temp_dir() . '/feval_detail_' . md5($courseName) . '.json';
-    if (file_exists($detailCache) && (time() - filemtime($detailCache)) < 600) {
+    $detailCache = sys_get_temp_dir() . '/feval_detail2_' . md5($courseName) . '.json';
+    if (file_exists($detailCache) && (time() - filemtime($detailCache)) < 3600) {
         $cached = json_decode(file_get_contents($detailCache), true);
         if ($cached !== null) return $cached;
     }
 
-    $nameL = mb_strtolower($courseName);
+    $nameL = mb_strtolower(trim(preg_replace('/\s+/', ' ', $courseName)));
 
-    // ── Paso 1: buscar en el caché de scraping ────────────────────────────────
-    $liveCache = sys_get_temp_dir() . '/feval_live_v1.txt';
-    $courseUrl  = '';
-    $cachedDesc = '';
+    // ── Paso 1: obtener lista de categorías ───────────────────────────────────
+    $mainHtml = curlGet('http://localhost/index.php/cursos-feval');
+    if (!$mainHtml) return null;
 
-    // Si el caché de scraping no existe, construirlo ahora
-    if (!file_exists($liveCache)) {
-        scrapeCoursesFromWeb($PUBLIC_URL);
-    }
+    preg_match_all(
+        '/<a\s[^>]*class="[^"]*eb-category-title-link[^"]*"[^>]*href="([^"]+)"|<a\s[^>]*href="([^"]+)"[^>]*class="[^"]*eb-category-title-link[^"]*"/i',
+        $mainHtml, $m
+    );
+    $catPaths = array_unique(array_filter(array_merge($m[1] ?? [], $m[2] ?? [])));
 
-    if (file_exists($liveCache)) {
-        $lines = file($liveCache, FILE_IGNORE_NEW_LINES);
-        foreach ($lines as $i => $line) {
-            // Líneas de curso: "- Nombre del curso | Inicio: ..."
-            if (!str_starts_with($line, '- ')) continue;
-            // Extraer título (antes del primer ' | ' si existe)
-            $titlePart = mb_substr($line, 2); // quitar "- "
-            $pipePos   = mb_strpos($titlePart, ' | ');
-            $lineTitle  = mb_strtolower($pipePos !== false ? mb_substr($titlePart, 0, $pipePos) : $titlePart);
-            if (trim($lineTitle) !== $nameL) continue;
+    // ── Paso 2: buscar en cada categoría por título EXACTO ────────────────────
+    $courseHref = '';
+    foreach ($catPaths as $path) {
+        $catHtml = curlGet('http://localhost' . $path);
+        if (!$catHtml) continue;
 
-            // Buscar URL y descripción en las 4 líneas siguientes
-            // (sin regex para evitar problemas con UTF-8)
-            for ($j = $i + 1; $j <= $i + 4 && $j < count($lines); $j++) {
-                $next = trim($lines[$j]);
-                $colonPos = mb_strpos($next, ':');
-                if ($colonPos === false) continue;
-                $key = mb_strtolower(mb_substr($next, 0, $colonPos));
-                $val = trim(mb_substr($next, $colonPos + 1));
-                if (mb_strpos($key, 'descripci') !== false) {
-                    $cachedDesc = $val;
-                } elseif (mb_strpos($key, 'preinscripci') !== false && str_starts_with($val, 'http')) {
-                    $courseUrl = $val;
-                }
-            }
-            break;
+        libxml_use_internal_errors(true);
+        $dom = new DOMDocument();
+        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $catHtml);
+        libxml_clear_errors();
+        $xp = new DOMXPath($dom);
+
+        foreach ($xp->query('//a[contains(@class,"eb-event-link")]') as $link) {
+            $linkTitle = mb_strtolower(trim(preg_replace('/\s+/', ' ', $link->textContent)));
+            if ($linkTitle !== $nameL) continue;
+            $courseHref = $link->getAttribute('href');
+            break 2; // encontrado — salir de ambos bucles
         }
     }
 
-    // ── Paso 2: visitar la página del curso para contenido completo ───────────
+    if (!$courseHref) return null;
+
+    $courseUrl  = rtrim($PUBLIC_URL, '/') . $courseHref;
+
+    // ── Paso 3: visitar la página del curso y verificar que el título coincide ─
+    $courseHtml = curlGet('http://localhost' . $courseHref);
+    if (!$courseHtml) {
+        // Sin contenido pero tenemos la URL correcta
+        $result = ['url' => $courseUrl, 'text' => ''];
+        file_put_contents($detailCache, json_encode($result));
+        return $result;
+    }
+
+    libxml_use_internal_errors(true);
+    $cdom = new DOMDocument();
+    $cdom->loadHTML('<?xml encoding="utf-8" ?>' . $courseHtml);
+    libxml_clear_errors();
+    $cxp = new DOMXPath($cdom);
+
+    // Verificar que la página corresponde al curso correcto
+    $pageHeading = $cxp->query('//*[contains(@class,"eb-page-heading")]')->item(0);
+    if ($pageHeading) {
+        $pageTitle = mb_strtolower(trim(preg_replace('/\s+/', ' ', $pageHeading->textContent)));
+        if ($pageTitle !== $nameL) {
+            // Título no coincide — URL incorrecta en Joomla, devolver solo URL sin texto
+            $result = ['url' => $courseUrl, 'text' => ''];
+            file_put_contents($detailCache, json_encode($result));
+            return $result;
+        }
+    }
+
+    // ── Paso 4: extraer descripción con selector exacto de clase ─────────────
     $fullText = '';
-    if ($courseUrl) {
-        // Convertir URL pública a localhost para evitar bloqueos externos
-        $localHref = parse_url($courseUrl, PHP_URL_PATH)
-                   . (parse_url($courseUrl, PHP_URL_QUERY) ? '?' . parse_url($courseUrl, PHP_URL_QUERY) : '');
-        $courseHtml = curlGet('http://localhost' . $localHref);
-        if ($courseHtml) {
-            libxml_use_internal_errors(true);
-            $dom = new DOMDocument();
-            $dom->loadHTML('<?xml encoding="utf-8" ?>' . $courseHtml);
-            libxml_clear_errors();
-            $xp = new DOMXPath($dom);
-
-            // Selector exacto para evitar que "eb-description" coincida con "eb-description-details"
-            $exactDesc = '//*[contains(concat(" ",normalize-space(@class)," ")," eb-description ")]';
-            $descNode  = $xp->query($exactDesc)->item(0);
-            if ($descNode) {
-                $fullText = mb_substr(extractNodeText($descNode), 0, 3000);
-            }
-        }
+    $descNode = $cxp->query('//*[contains(concat(" ",normalize-space(@class)," ")," eb-description ")]')->item(0);
+    if ($descNode) {
+        $fullText = mb_substr(extractNodeText($descNode), 0, 3000);
     }
 
-    // Sin URL ni texto: no cachear para que reintente en la siguiente petición
-    if (!$courseUrl && !$cachedDesc && !$fullText) {
-        return null;
-    }
-
-    $result = [
-        'url'  => $courseUrl ?: (rtrim($PUBLIC_URL, '/') . '/index.php/cursos-feval'),
-        'text' => $fullText ?: $cachedDesc,
-    ];
+    $result = ['url' => $courseUrl, 'text' => $fullText];
     file_put_contents($detailCache, json_encode($result));
     return $result;
 }
