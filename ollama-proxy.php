@@ -487,7 +487,30 @@ function fetchCourseDetails($courseName) {
     $fullText = '';
     $descNode = $cxp->query('//*[contains(concat(" ",normalize-space(@class)," ")," eb-description ")]')->item(0);
     if ($descNode) {
-        $fullText = mb_substr(extractNodeText($descNode), 0, 3000);
+        // Eliminar nodos que contienen metadatos de Joomla (tabla de fechas, formulario de inscripción)
+        $removePatterns = ['eb-event-registration','eb-custom-field','eb-event-date','eb-location',
+                           'register','login','preinscri','identif','volver','inicio','clausura','cierre'];
+        foreach ($cxp->query('.//*', $descNode) as $node) {
+            $cls  = mb_strtolower($node->getAttribute('class') ?? '');
+            $txt  = mb_strtolower(trim($node->textContent ?? ''));
+            foreach ($removePatterns as $pat) {
+                if (mb_strpos($cls, $pat) !== false || ($node->nodeName === 'p' && mb_strpos($txt, $pat) !== false)) {
+                    $node->parentNode->removeChild($node);
+                    break;
+                }
+            }
+        }
+        // Eliminar celdas de tabla con solo metadatos (| ONLINE | DESEMPLEADOS | ...)
+        foreach ($cxp->query('.//table', $descNode) as $table) {
+            $table->parentNode->removeChild($table);
+        }
+        $raw = extractNodeText($descNode);
+        // Cortar en la primera línea que parezca metadata del formulario
+        foreach (['Por favor', 'Descripción del evento', 'Inicio\n', 'Cierre inscripción', 'identif'] as $cut) {
+            $pos = mb_strpos($raw, $cut);
+            if ($pos !== false) $raw = mb_substr($raw, 0, $pos);
+        }
+        $fullText = mb_substr(trim($raw), 0, 2500);
     }
 
     $result = ['url' => $courseUrl, 'text' => $fullText];
