@@ -363,15 +363,20 @@ function getAllJoomlaEvents() {
     $mainHtml = joomlaGet('/index.php/cursos-feval');
     if (!$mainHtml) return [];
 
-    // Páginas a escanear: la principal + todas las subcategorías
-    $pagesToScan = ['/index.php/cursos-feval'];
-
+    // Obtener todas las subcategorías
     preg_match_all(
         '/<a\s[^>]*class="[^"]*eb-category-title-link[^"]*"[^>]*href="([^"]+)"|<a\s[^>]*href="([^"]+)"[^>]*class="[^"]*eb-category-title-link[^"]*"/i',
         $mainHtml, $m
     );
     $catPaths = array_unique(array_filter(array_merge($m[1] ?? [], $m[2] ?? [])));
-    $pagesToScan = array_unique(array_merge($pagesToScan, $catPaths));
+
+    // Para cada categoría, cargar TODAS las páginas con limit=200 para evitar paginación
+    $pagesToScan = ['/index.php/cursos-feval'];
+    foreach ($catPaths as $path) {
+        $pagesToScan[] = $path;
+        $pagesToScan[] = $path . '?limitstart=0&limit=200'; // forzar todos los eventos
+    }
+    $pagesToScan = array_unique($pagesToScan);
 
     $events = [];
     $seen   = [];
@@ -389,6 +394,18 @@ function getAllJoomlaEvents() {
             if ($t && $h && !isset($seen[$h])) {
                 $seen[$h]  = true;
                 $events[] = ['title' => $t, 'href' => $h];
+            }
+        }
+        // También buscar subcategorías dentro de categorías (categorías anidadas)
+        preg_match_all(
+            '/<a\s[^>]*class="[^"]*eb-category-title-link[^"]*"[^>]*href="([^"]+)"|<a\s[^>]*href="([^"]+)"[^>]*class="[^"]*eb-category-title-link[^"]*"/i',
+            $html, $sub
+        );
+        foreach (array_unique(array_filter(array_merge($sub[1] ?? [], $sub[2] ?? []))) as $subPath) {
+            if (!isset($seen['cat_' . $subPath])) {
+                $seen['cat_' . $subPath] = true;
+                $pagesToScan[] = $subPath;
+                $pagesToScan[] = $subPath . '?limitstart=0&limit=200';
             }
         }
     }
