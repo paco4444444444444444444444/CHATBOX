@@ -397,16 +397,23 @@ function getAllJoomlaEvents() {
     return $events;
 }
 
+/** Elimina acentos y normaliza a minúsculas para comparación robusta. */
+function normStr($s) {
+    $s = mb_strtolower(trim(preg_replace('/\s+/', ' ', $s)));
+    $from = ['á','é','í','ó','ú','ü','ñ','à','è','ì','ò','ù','â','ê','î','ô','û'];
+    $to   = ['a','e','i','o','u','u','n','a','e','i','o','u','a','e','i','o','u'];
+    return str_replace($from, $to, $s);
+}
+
 /**
  * Encuentra el href del evento de Joomla que mejor coincide con el nombre del curso.
- * 1. Match exacto de título
- * 2. Todas las palabras clave del nombre deben estar en el título del evento
+ * Compara sin acentos para que "Introducción" == "Introduccion", etc.
  */
 function findEventHref($courseName, $allEvents) {
-    $nameL = mb_strtolower(trim(preg_replace('/\s+/', ' ', $courseName)));
-    $kwStop = ['de','del','la','el','los','las','en','con','para','por','un','una','y','e','o','a','con'];
+    $nameN = normStr($courseName);
+    $kwStop = ['de','del','la','el','los','las','en','con','para','por','un','una','y','e','o','a','al','su'];
     $keywords = array_values(array_filter(
-        explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $nameL)),
+        explode(' ', preg_replace('/[^a-z0-9 ]/u', ' ', $nameN)),
         fn($w) => mb_strlen($w) >= 3 && !in_array($w, $kwStop)
     ));
 
@@ -414,14 +421,13 @@ function findEventHref($courseName, $allEvents) {
     $bestScore = 0;
 
     foreach ($allEvents as $ev) {
-        $evL = mb_strtolower(trim(preg_replace('/\s+/', ' ', $ev['title'])));
-        if ($evL === $nameL) return $ev['href']; // exacto
+        $evN = normStr($ev['title']);
+        if ($evN === $nameN) return $ev['href']; // exacto sin acentos
         if (empty($keywords)) continue;
         $hits = 0;
         foreach ($keywords as $kw) {
-            if (mb_strpos($evL, $kw) !== false) $hits++;
+            if (mb_strpos($evN, $kw) !== false) $hits++;
         }
-        // Todas las palabras clave deben coincidir
         if ($hits === count($keywords) && $hits > $bestScore) {
             $bestScore = $hits;
             $bestHref  = $ev['href'];
@@ -459,20 +465,19 @@ function fetchCourseDetails($courseName) {
     libxml_clear_errors();
     $cxp = new DOMXPath($cdom);
 
-    // Verificar con palabras clave (no exacto) que la página es correcta
+    // Verificar que la página visitada corresponde al curso (usando normStr sin acentos)
     $pageHeading = $cxp->query('//*[contains(@class,"eb-page-heading")]')->item(0);
     if ($pageHeading) {
-        $kwStop  = ['de','del','la','el','los','las','en','con','para','por','un','una','y','e','o','a'];
-        $nameL   = mb_strtolower($courseName);
+        $kwStop   = ['de','del','la','el','los','las','en','con','para','por','un','una','y','e','o','a','al','su'];
+        $nameN    = normStr($courseName);
         $kwCourse = array_values(array_filter(
-            explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $nameL)),
+            explode(' ', preg_replace('/[^a-z0-9 ]/u', ' ', $nameN)),
             fn($w) => mb_strlen($w) >= 3 && !in_array($w, $kwStop)
         ));
-        $pageL = mb_strtolower($pageHeading->textContent);
+        $pageN = normStr($pageHeading->textContent);
         $hits  = 0;
-        foreach ($kwCourse as $kw) { if (mb_strpos($pageL, $kw) !== false) $hits++; }
+        foreach ($kwCourse as $kw) { if (mb_strpos($pageN, $kw) !== false) $hits++; }
         if (!empty($kwCourse) && $hits < ceil(count($kwCourse) * 0.6)) {
-            // Menos del 60% de palabras coinciden → contenido incorrecto
             $result = ['url' => $courseUrl, 'text' => ''];
             file_put_contents($detailCache, json_encode($result));
             return $result;
