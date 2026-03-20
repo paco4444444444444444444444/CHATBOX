@@ -225,6 +225,18 @@ if (empty($clean_messages)) {
 // Para preguntas sobre cursos concretos, el PHP responde directamente
 // con datos exactos, evitando que el modelo invente información.
 
+$AREAS_CATALOG = [
+  'Cloud, IA y Análisis de Datos' => [1,2,3,4,5,6,7,8,9,21,22,23,24],
+  'Ciberseguridad y Redes'        => [10,11,12,13,14,15,16,17,18,19,20],
+  'Analítica de Datos y BI'       => [41,42,43,44,45,46,47,48],
+  'Desarrollo de Software'        => [25,26,27,28,29],
+  'Videojuegos'                   => [30,31,32,33,34],
+  'Gestión de Proyectos'          => [35,36,37],
+  'Sistemas y Soporte TIC'        => [38,39,40],
+  'Diseño Gráfico y Marketing'    => [66,67,68,69,70,71,72,73],
+  'Agricultura 4.0 y Drónica'     => [49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65],
+];
+
 $DIRECT_CATALOG = [
   ['n'=>1,  'nombre'=>'Fundamentos de la Inteligencia Artificial',                    'h'=>36,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'16/03/2026','fin'=>'09/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
   ['n'=>2,  'nombre'=>'IA avanzada: Arquitecturas, Modelos y Despliegue',             'h'=>24,  'pub'=>'EMPLEADOS',   'mod'=>'ONLINE',        'ini'=>'20/04/2026','fin'=>'30/04/2026','dias'=>'lun-jue','hor'=>'17-20h'],
@@ -620,6 +632,34 @@ function coursesInConversation($messages, $catalog) {
         }
     }
     return $found;
+}
+
+// ── Listado completo de cursos por área (intercepta antes del LLM) ───────────
+$list_keys = ['todos los cursos','qué cursos hay','que cursos hay','lista de cursos','ver todos los cursos',
+               'cuántos cursos','cuantos cursos','todas las áreas','todas las areas','qué áreas','que areas',
+               'qué ofertas','que ofertas','cursos disponibles','ver el catálogo','ver el catalogo'];
+$is_listing = false;
+foreach ($list_keys as $lk) {
+    if (mb_strpos(mb_strtolower($last_user_msg), $lk) !== false) { $is_listing = true; break; }
+}
+if ($is_listing) {
+    global $AREAS_CATALOG, $DIRECT_CATALOG;
+    $byN = [];
+    foreach ($DIRECT_CATALOG as $c) $byN[$c['n']] = $c;
+    $out = "Estos son los cursos disponibles en 2026, organizados por área. Todos son **GRATUITOS**:\n\n";
+    foreach ($AREAS_CATALOG as $areaName => $ns) {
+        $out .= "**" . $areaName . "**\n";
+        foreach ($ns as $n) {
+            if (!isset($byN[$n])) continue;
+            $c    = $byN[$n];
+            $out .= "- {$c['nombre']} ({$c['pub']}, {$c['ini']})\n";
+        }
+        $out .= "\n";
+    }
+    $out .= "¿Te interesa algún área o curso en concreto? Puedo darte todos los detalles.";
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['content' => [['type' => 'text', 'text' => $out]]]);
+    exit;
 }
 
 // ── FAQ directas: respuestas fijas para preguntas frecuentes ─────────────────
