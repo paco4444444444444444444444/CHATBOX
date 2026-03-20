@@ -378,53 +378,38 @@ function getAllJoomlaEvents() {
     }
     $pagesToScan = array_unique($pagesToScan);
 
-    $events   = [];
-    $seen     = [];
-    $queue    = $pagesToScan;
-    $visited  = [];
+    $events  = [];
+    $seen    = [];
 
-    while (!empty($queue)) {
-        $path = array_shift($queue);
-        if (isset($visited[$path])) continue;
-        $visited[$path] = true;
+    // Para cada categoría, paginar en pasos de 5 (?start=0,5,10...) hasta que no haya eventos
+    foreach ($pagesToScan as $catPath) {
+        $start = 0;
+        while (true) {
+            $path = ($start === 0) ? $catPath : $catPath . '?start=' . $start;
+            $html = ($catPath === '/index.php/cursos-feval' && $start === 0) ? $mainHtml : joomlaGet($path);
+            if (!$html) break;
 
-        $html = ($path === '/index.php/cursos-feval') ? $mainHtml : joomlaGet($path);
-        if (!$html) continue;
+            libxml_use_internal_errors(true);
+            $dom = new DOMDocument();
+            $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+            libxml_clear_errors();
+            $xp = new DOMXPath($dom);
 
-        libxml_use_internal_errors(true);
-        $dom = new DOMDocument();
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-        libxml_clear_errors();
-        $xp = new DOMXPath($dom);
-
-        // Recoger eventos de esta página
-        foreach ($xp->query('//a[contains(@class,"eb-event-link")]') as $link) {
-            $t = trim(preg_replace('/\s+/', ' ', $link->textContent));
-            $h = $link->getAttribute('href');
-            if ($t && $h && !isset($seen[$h])) {
-                $seen[$h]  = true;
-                $events[]  = ['title' => $t, 'href' => $h];
+            $newInPage = 0;
+            foreach ($xp->query('//a[contains(@class,"eb-event-link")]') as $link) {
+                $t = trim(preg_replace('/\s+/', ' ', $link->textContent));
+                $h = $link->getAttribute('href');
+                if ($t && $h && !isset($seen[$h])) {
+                    $seen[$h] = true;
+                    $events[] = ['title' => $t, 'href' => $h];
+                    $newInPage++;
+                }
             }
-        }
 
-        // Seguir links de paginación (siguiente página de la misma categoría)
-        foreach ($xp->query('//a[contains(@class,"pagenav") or contains(@class,"next") or contains(@rel,"next")]') as $pgLink) {
-            $pgHref = $pgLink->getAttribute('href');
-            if ($pgHref && !isset($visited[$pgHref])) $queue[] = $pgHref;
-        }
-        // También buscar paginación por patrón ?start=N en los hrefs de la página
-        preg_match_all('/href="([^"]*\?[^"]*(?:start|limitstart)=\d+[^"]*)"/i', $html, $pgM);
-        foreach (array_unique($pgM[1] ?? []) as $pgPath) {
-            if (!isset($visited[$pgPath])) $queue[] = $pgPath;
-        }
-
-        // Subcategorías anidadas
-        preg_match_all(
-            '/<a\s[^>]*class="[^"]*eb-category-title-link[^"]*"[^>]*href="([^"]+)"|<a\s[^>]*href="([^"]+)"[^>]*class="[^"]*eb-category-title-link[^"]*"/i',
-            $html, $sub
-        );
-        foreach (array_unique(array_filter(array_merge($sub[1] ?? [], $sub[2] ?? []))) as $subPath) {
-            if (!isset($visited[$subPath])) $queue[] = $subPath;
+            // Si esta página no aportó eventos nuevos, no hay más páginas
+            if ($newInPage === 0) break;
+            $start += 5;
+            if ($start > 200) break; // seguridad: máximo 40 páginas por categoría
         }
     }
 
