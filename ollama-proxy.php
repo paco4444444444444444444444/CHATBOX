@@ -627,19 +627,99 @@ $faq_q = mb_strtolower(trim($last_user_msg));
 $faq_responses = [
     // Gratuidad
     ['keys' => ['gratis','gratuito','gratuita','precio','coste','cuesta','pagar','pago','financiaci'],
-     'answer' => "Todos los cursos son completamente **GRATUITOS**, incluyendo el examen oficial de certificación cuando el curso lo incluya. No hay ningún coste para el alumno. Están financiados por la Junta de Extremadura (Consejería de Economía, Empleo y Transformación Digital) y el **SEXPE** (Servicio Extremeño Público de Empleo)."],
+     'answer' => "Sí, todos los cursos son completamente **GRATUITOS**, incluyendo el examen oficial de certificación cuando el curso lo incluya. No hay ningún coste para el alumno. Están financiados por la Junta de Extremadura (Consejería de Economía, Empleo y Transformación Digital) y el **SEXPE**."],
+
     // SEXPE
     ['keys' => ['sexpe'],
-     'answer' => "El **SEXPE** (Servicio Extremeño Público de Empleo) es el organismo de la Junta de Extremadura que co-financia estos cursos gratuitos. Para consultas sobre tu situación laboral, prestaciones o subsidios, contacta con tu Centro de Empleo más cercano — FEVAL no tiene acceso al sistema SEXPE."],
-    // FEVAL
+     'answer' => "El **SEXPE** (Servicio Extremeño Público de Empleo) es el organismo de la Junta de Extremadura que co-financia estos cursos gratuitos. Para consultas sobre tu situación laboral, prestaciones o subsidios, contacta con tu Centro de Empleo más cercano — FEVAL no tiene acceso a tus datos en el SEXPE."],
+
+    // FEVAL / contacto
     ['keys' => ['feval','quién organiza','quien organiza'],
-     'answer' => "**FEVAL Formación** es la plataforma de formación TIC de la Institución Ferial de Extremadura. Ofrecemos más de 70 cursos TIC gratuitos en 2026, financiados por la Junta de Extremadura y el SEXPE."],
-    // Diploma / certificado
+     'answer' => "**FEVAL Formación** es la plataforma de formación TIC de la Institución Ferial de Extremadura. Ofrecemos más de 70 cursos TIC gratuitos en 2026, financiados por la Junta de Extremadura y el SEXPE.\n\nContacto: formacion@feval.com | 924 829 100 | 618 457 790"],
+
+    // Recoger diplomas / horario sede
+    ['keys' => ['recoger diploma','recoger el diploma','horario diploma','horario feval','horario sede','horario oficina','instalaciones','don benito','paseo de feval'],
+     'answer' => "Puedes recoger los diplomas de **lunes a viernes de 08:00h a 15:00h** en las instalaciones del Centro Tecnológico de FEVAL, sito en el Paseo de FEVAL s/n, Don Benito (Badajoz)."],
+
+    // Cuándo llega el diploma
+    ['keys' => ['cuándo llega','cuando llega','cuándo me llega','cuando me llega','tardará','tardara','tiempo diploma','plazo diploma'],
+     'answer' => "El diploma de aprovechamiento debe ser firmado por el SEXPE, un trámite que suele tardar **varios meses**. Sin embargo, desde FEVAL podemos emitirte un **certificado de aprovechamiento** firmado que acredita que has realizado la formación mientras llega el diploma oficial. Contacta en formacion@feval.com o 924 829 100."],
+
+    // Tipos de diploma / certificado de profesionalidad
+    ['keys' => ['tipos de diploma','tipo de diploma','certificado de profesionalidad','profesionalidad'],
+     'answer' => "Cada curso incluye un **diploma de aprovechamiento** expedido por el SEXPE. Los cursos con certificación oficial (Cisco, Microsoft, EC-Council, AWS, etc.) incluyen también el examen oficial sin coste adicional.\n\n⚠️ Ninguno de los cursos cuenta con **certificado de profesionalidad**, al tratarse de formación no reglada. Sí cuentan con certificaciones profesionales de fabricante altamente demandadas en el mercado laboral."],
+
+    // Diploma / certificado (genérico)
     ['keys' => ['diploma','certificado','título','titulo','acreditaci'],
-     'answer' => "Cada curso incluye un **diploma de aprovechamiento** expedido por el SEXPE al superar el curso. En los cursos con certificación oficial (Cisco, Microsoft, EC-Council, etc.) el examen está incluido sin coste adicional. La firma oficial del diploma SEXPE puede tardar varios meses tras finalizar el curso."],
-    // Preinscripción
+     'answer' => "Cada curso incluye un **diploma de aprovechamiento** expedido por el SEXPE al superar el curso. En los cursos con certificación oficial el examen está incluido sin coste adicional. La firma oficial del diploma SEXPE puede tardar varios meses; mientras tanto FEVAL puede emitir un certificado provisional.\n\nPara recoger diplomas: lunes a viernes 08:00-15:00h en Paseo de FEVAL s/n, Don Benito (Badajoz)."],
+
+    // Baremación / selección
+    ['keys' => ['baremaci','selección','seleccion','criterios','puntuaci','75','plazas libres','cómo se selecciona','como se selecciona'],
+     'answer' => "Cuando un curso supera las **75 preinscripciones** se cierra automáticamente y se aplica baremación:\n- **Desempleados**: criterios oficiales del SEXPE (consultables en la web).\n- **Empleados**: criterios propios de FEVAL (consultables en la web).\n\nSe publica una resolución con los DNI y puntuaciones ordenadas, ofreciendo plaza hasta completar **16 alumnos**. En cursos con menos de 75 preinscripciones se llama por orden de inscripción, por lo que conviene inscribirse cuanto antes."],
+
+    // Requisitos para acceder
+    ['keys' => ['requisito','requisitos','acceder','puedo acceder','quién puede','quien puede'],
+     'answer' => "Los requisitos son mínimos:\n- **Empleados**: que tu puesto de trabajo esté en Extremadura.\n- **Desempleados**: ser demandante de empleo en cualquier Centro de Empleo de Extremadura.\n\nPara cursos avanzados se recomienda haber realizado previamente los cursos de nivel básico del mismo itinerario."],
+
+    // Extremadura / fuera de la comunidad
+    ['keys' => ['fuera de extremadura','fuera de la comunidad','otra comunidad','no resido','no vivo en extremadura','teletrabaj'],
+     'answer' => "Los cursos son exclusivos para personas que **residan en Extremadura** o que, sin residir, **teletrabajen para una empresa con domicilio social en Extremadura**. Es un requisito del SEXPE al ser una iniciativa extremeña."],
+
+    // Empleado/desempleado intercambio de plazas
+    ['keys' => ['desempleado.*empleado','empleado.*desempleado','soy desempleado.*curso de empleado','soy empleado.*curso de desempleado','30%','plazas de empleado','plazas de desempleado'],
+     'answer' => "Sí es posible. Los cursos son **preferentemente** para empleados o desempleados, pero si quedan plazas libres:\n- Hasta un **30% de plazas** de un curso de empleados puede asignarse a desempleados.\n- Y viceversa.\n\nSiempre sujeto a disponibilidad."],
+
+    // Faltas / asistencia
+    ['keys' => ['faltar','falta','faltas','asistencia','ausencia','puedo faltar'],
+     'answer' => "Se puede faltar como máximo el **25% de las clases** (p.ej. en un curso de 12 clases, máximo 3 faltas). Al menos **una falta** debe justificarse con justificante oficial (urgencia médica, deber público, etc.).\n\nCada clase dura 180 minutos; para que compute como asistencia hay que estar al menos **150 minutos**. Si se está menos tiempo, cuenta como falta."],
+
+    // Abandono / baja
+    ['keys' => ['abandonar','abandono','darme de baja','baja','me repercute','penalizaci','sancion','sanciones'],
+     'answer' => "Abandonar un curso **no te repercute en nada** ni genera sanciones para futuras formaciones con FEVAL o SEXPE. Simplemente no obtendrás el diploma de aprovechamiento de ese curso.\n\nSi no vas a poder realizarlo, comunícalo cuanto antes a formacion@feval.com o 924 829 100 para que tu plaza pueda asignarse a otro alumno."],
+
+    // Prestaciones / subsidio / demanda de empleo
+    ['keys' => ['prestaci','subsidio','demanda de empleo','paro','me quitan','me suspenden','me afecta'],
+     'answer' => "Realizar un curso **no suspende tu demanda de empleo** y se mantiene la intermediación (salvo que tú renuncies a ella). Sin embargo, si tienes dudas sobre prestaciones o subsidios concretos, contacta con tu **Centro de Empleo más cercano**, ya que FEVAL no tiene acceso a tus datos en el SEXPE."],
+
+    // Online / clases en directo / grabaciones
+    ['keys' => ['online','directo','grabaci','grabad','ritmo','asistir','clases online','cómo son las clases','como son las clases'],
+     'answer' => "Todos los cursos son **online con clases en directo** en horario fijo (no se graban). Debes conectarte en el horario indicado. La excepción son algunos cursos de drones, que tienen una pequeña parte presencial.\n\nNo es formación a tu propio ritmo: hay que asistir a las clases en el horario programado."],
+
+    // Requisitos técnicos
+    ['keys' => ['requisitos técnicos','requisitos tecnicos','ordenador','equipo','internet','qué necesito','que necesito'],
+     'answer' => "Solo necesitas **ordenador con conexión a internet** y nociones básicas de informática. Para cursos avanzados se recomienda haber realizado primero los cursos de nivel básico del mismo itinerario."],
+
+    // Formulario / datos preinscripción
+    ['keys' => ['formulario','datos personales','largo formulario','rellenar datos','rellenar formulario'],
+     'answer' => "El formulario completo solo se rellena **la primera vez** que te preinscribes. En siguientes preinscripciones el sistema recuerda tus datos, y puedes modificarlos si es necesario."],
+
+    // Cuenta bloqueada / registro
+    ['keys' => ['cuenta bloqueada','bloqueada','bloquead','confirmar.*correo','confirmar.*email','no recibo.*correo','no me llega','spam'],
+     'answer' => "Al crear tu cuenta recibirás un **correo de confirmación** (revisa también la carpeta de Spam). Debes confirmar el registro haciendo clic en el enlace del correo — hasta entonces la cuenta aparecerá como bloqueada.\n\nSi no recibes el correo, contacta: formacion@feval.com | 924 829 100 | 618 457 790"],
+
+    // Error al crear cuenta / usuario en uso
+    ['keys' => ['error al crear','no me deja','nombre de usuario','usuario en uso','no puedo crear cuenta','no puedo registrarme'],
+     'answer' => "El error más habitual es que el **nombre de usuario ya está en uso**. Prueba con uno diferente. Si el problema persiste, contacta con formacion@feval.com | 924 829 100 | 618 457 790"],
+
+    // No sé si estoy seleccionado / no sé nada
+    ['keys' => ['estoy dentro','estoy seleccionado','soy seleccionado','he sido seleccionado','no sé nada','no se nada del curso','me han seleccionado'],
+     'answer' => "Solo contactaremos con las personas **seleccionadas** para el curso. Si se acerca la fecha y no has recibido noticias, es posible que no hayas sido seleccionado en esta edición. Puedes preinscribirte en otras ediciones o cursos similares.\n\nSi te han confirmado la matrícula pero no recibes el enlace de acceso, contacta: formacion@feval.com | 924 829 100 | 618 457 790"],
+
+    // No puedo asistir / renunciar a plaza
+    ['keys' => ['no puedo asistir','no podré asistir','no podré realizarlo','renunciar a la plaza','cedo mi plaza','liberar plaza'],
+     'answer' => "Comunícalo cuanto antes a **formacion@feval.com** o al 924 829 100 / 618 457 790. Es importante para poder asignar tu plaza a otro alumno y que no quede libre cuando hay personas interesadas."],
+
+    // Preferencia itinerario
+    ['keys' => ['preferencia','itinerario','siguiente curso','continuar el itinerario','prioridad'],
+     'answer' => "Si ya has realizado un curso del itinerario y quieres continuar con el siguiente, tienes **preferencia en la asignación de plaza** respecto a nuevos alumnos, ya que el objetivo es que completes el itinerario completo."],
+
+    // Sugerencia / contacto
+    ['keys' => ['sugerencia','duda','contacto','contactar','email','correo','teléfono','telefono','comunicar'],
+     'answer' => "Puedes contactar con FEVAL Formación por:\n- **Email**: formacion@feval.com\n- **Teléfono**: 924 829 100 | 618 457 790\n- **Horario**: lunes a viernes de 08:00h a 15:00h"],
+
+    // Preinscripción (genérico)
     ['keys' => ['preinscripci','inscripci','apuntar','apuntarme','solicitar','registro'],
-     'answer' => "Para preinscribirte, accede al catálogo de cursos en: " . rtrim($PUBLIC_URL, '/') . "/index.php/cursos-feval\n\nEntra en el curso que te interesa y pulsa el botón de preinscripción. Para cursos de **desempleados** se aplica la baremación oficial del SEXPE. Para cursos de **empleados** se tramita a través de la empresa (FUNDAE/crédito formativo)."],
+     'answer' => "Para preinscribirte entra en el curso que te interese desde el catálogo:\n" . rtrim($PUBLIC_URL, '/') . "/index.php/cursos-feval\n\nEl formulario completo solo se rellena la primera vez. Solo contactaremos con los seleccionados."],
 ];
 foreach ($faq_responses as $faq) {
     foreach ($faq['keys'] as $key) {
