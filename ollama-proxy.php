@@ -445,7 +445,9 @@ function findEventHref($courseName, $allEvents) {
         foreach ($keywords as $kw) {
             if (mb_strpos($evN, $kw) !== false) $hits++;
         }
-        if ($hits === count($keywords) && $hits > $bestScore) {
+        // Requiere al menos el 80% de keywords (tolera 1 diferencia de nombre)
+        $minHits = max(1, (int)ceil(count($keywords) * 0.8));
+        if ($hits >= $minHits && $hits > $bestScore) {
             $bestScore = $hits;
             $bestHref  = $ev['href'];
         }
@@ -522,8 +524,10 @@ function fetchCourseDetails($courseName) {
             $table->parentNode->removeChild($table);
         }
         $raw = extractNodeText($descNode);
-        // Cortar en la primera línea que parezca metadata del formulario
-        foreach (['Por favor', 'Descripción del evento', 'Inicio\n', 'Cierre inscripción', 'identif'] as $cut) {
+        // Eliminar líneas con formato de tabla Joomla (| ONLINE | DESEMPLEADOS | ...)
+        $raw = preg_replace('/\n\s*\|[^\n]+/', '', $raw);
+        // Cortar al primer bloque de metadatos del formulario de inscripción
+        foreach (['Por favor', 'Descripci', 'Inicio\n', 'Cierre', 'identif', 'Volver'] as $cut) {
             $pos = mb_strpos($raw, $cut);
             if ($pos !== false) $raw = mb_substr($raw, 0, $pos);
         }
