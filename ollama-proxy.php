@@ -258,7 +258,9 @@ $DIRECT_CATALOG = [
 function searchCatalog($query, $catalog) {
     $q = mb_strtolower($query);
     // Palabras a ignorar
-    $stop = ['curso','cursos','hay','hay','sobre','para','el','la','los','las','de','que','información','informacion','dame','quiero','saber','ver'];
+    $stop = ['curso','cursos','hay','sobre','para','el','la','los','las','de','que','del','al','un','una','en','con','por','hay',
+             'información','informacion','dame','quiero','saber','ver','dime','datos','dato','cuáles','cuales','existe','existe',
+             'tienes','tiene','puedes','puedo','algún','algun','más','mas'];
     $words = array_filter(explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $q)), function($w) use ($stop) {
         return mb_strlen($w) > 2 && !in_array($w, $stop);
     });
