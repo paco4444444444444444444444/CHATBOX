@@ -255,12 +255,13 @@ $DIRECT_CATALOG = [
  * Busca cursos que coincidan con palabras clave del mensaje.
  * Devuelve array de cursos o null si no hay coincidencia directa.
  */
-function searchCatalog($query, $catalog) {
+/**
+ * @param bool $strict  true = todas las palabras deben coincidir (AND); false = basta una (OR)
+ */
+function searchCatalog($query, $catalog, $strict = false) {
     $q = mb_strtolower($query);
 
     // ── Paso 1: coincidencia exacta de nombre completo ────────────────────────
-    // Si el nombre completo de un curso aparece literalmente en la consulta,
-    // devolvemos solo ese/esos cursos (evita falsos positivos por palabras sueltas).
     $exactMatches = [];
     foreach ($catalog as $c) {
         if (mb_strpos($q, mb_strtolower($c['nombre'])) !== false) {
@@ -269,7 +270,7 @@ function searchCatalog($query, $catalog) {
     }
     if (!empty($exactMatches)) return $exactMatches;
 
-    // ── Paso 2: búsqueda por palabras clave ───────────────────────────────────
+    // ── Paso 2: búsqueda por palabras clave (AND o OR según $strict) ──────────
     $stop = ['curso','cursos','hay','sobre','para','el','la','los','las','de','que','del','al','un','una','en','con','por',
              'información','informacion','dame','quiero','saber','ver','dime','datos','dato','cuáles','cuales',
              'tienes','tiene','puedes','puedo','algún','algun','más','mas'];
@@ -282,10 +283,17 @@ function searchCatalog($query, $catalog) {
     $matches = [];
     foreach ($catalog as $c) {
         $name = mb_strtolower($c['nombre']);
-        foreach ($words as $w) {
-            if (mb_strpos($name, $w) !== false) {
-                $matches[] = $c;
-                break;
+        if ($strict) {
+            // Todas las palabras deben aparecer en el nombre
+            $allMatch = true;
+            foreach ($words as $w) {
+                if (mb_strpos($name, $w) === false) { $allMatch = false; break; }
+            }
+            if ($allMatch) $matches[] = $c;
+        } else {
+            // Basta con que aparezca una palabra
+            foreach ($words as $w) {
+                if (mb_strpos($name, $w) !== false) { $matches[] = $c; break; }
             }
         }
     }
@@ -315,22 +323,34 @@ function fetchCourseDetails($courseName) {
     $courseUrl  = '';
     $cachedDesc = '';
 
+    // Si el caché de scraping no existe, construirlo ahora
+    if (!file_exists($liveCache)) {
+        scrapeCoursesFromWeb($PUBLIC_URL);
+    }
+
     if (file_exists($liveCache)) {
         $lines = file($liveCache, FILE_IGNORE_NEW_LINES);
         foreach ($lines as $i => $line) {
-            // Líneas de curso: "- Nombre del curso | Inicio: ..."  o  "- Nombre del curso"
-            if (!preg_match('/^- (.+?)(?:\s*\|.*)?$/', $line, $lm)) continue;
-            $lineTitle = mb_strtolower(trim($lm[1]));
-            if ($lineTitle !== $nameL) continue;
+            // Líneas de curso: "- Nombre del curso | Inicio: ..."
+            if (!str_starts_with($line, '- ')) continue;
+            // Extraer título (antes del primer ' | ' si existe)
+            $titlePart = mb_substr($line, 2); // quitar "- "
+            $pipePos   = mb_strpos($titlePart, ' | ');
+            $lineTitle  = mb_strtolower($pipePos !== false ? mb_substr($titlePart, 0, $pipePos) : $titlePart);
+            if (trim($lineTitle) !== $nameL) continue;
 
-            // Buscar URL y descripción en las líneas siguientes
+            // Buscar URL y descripción en las 4 líneas siguientes
+            // (sin regex para evitar problemas con UTF-8)
             for ($j = $i + 1; $j <= $i + 4 && $j < count($lines); $j++) {
                 $next = trim($lines[$j]);
-                if (preg_match('/^Descripci[oó]n:\s*(.+)/i', $next, $dm)) {
-                    $cachedDesc = $dm[1];
-                }
-                if (preg_match('/^Preinscripci[oó]n:\s*(https?:\/\/\S+)/i', $next, $um)) {
-                    $courseUrl = $um[1];
+                $colonPos = mb_strpos($next, ':');
+                if ($colonPos === false) continue;
+                $key = mb_strtolower(mb_substr($next, 0, $colonPos));
+                $val = trim(mb_substr($next, $colonPos + 1));
+                if (mb_strpos($key, 'descripci') !== false) {
+                    $cachedDesc = $val;
+                } elseif (mb_strpos($key, 'preinscripci') !== false && str_starts_with($val, 'http')) {
+                    $courseUrl = $val;
                 }
             }
             break;
@@ -394,9 +414,8 @@ function fetchCourseDetails($courseName) {
         }
     }
 
-    // Sin URL ni texto: no pudimos encontrar el curso
+    // Sin URL ni texto: no cachear para que reintente en la siguiente petición
     if (!$courseUrl && !$cachedDesc && !$fullText) {
-        file_put_contents($detailCache, json_encode(null));
         return null;
     }
 
@@ -465,7 +484,8 @@ function coursesInBotMessage($botMsg, $catalog) {
 //    dentro de ese subconjunto (el usuario puede referirse con palabras parciales).
 $context_catalog = coursesInBotMessage($last_bot_msg, $DIRECT_CATALOG);
 if (count($context_catalog) > 1) {
-    $ctx_matches = searchCatalog($last_user_msg, $context_catalog);
+    // Usar lógica AND dentro del contexto: todas las palabras deben coincidir
+    $ctx_matches = searchCatalog($last_user_msg, $context_catalog, true);
     if ($ctx_matches !== null && count($ctx_matches) < count($context_catalog)) {
         // El usuario ha refinado la lista anterior → usar esos resultados
         header('Content-Type: application/json; charset=utf-8');
