@@ -64,6 +64,11 @@ $BACKEND = 'ollama'; // ← 'ollama' para tu PC, 'groq' para la nube gratis
 // Cámbiala si tu dominio/túnel cambia
 $PUBLIC_URL = 'https://blog-tired-vitamins-flu.trycloudflare.com';
 
+// URL interna para que el script acceda a Joomla SIN pasar por el túnel.
+// Normalmente 'http://127.0.0.1' funciona si Apache escucha en el puerto 80.
+// Si no funciona, ponlo igual que $PUBLIC_URL y el scraping irá por Cloudflare.
+$JOOMLA_INTERNAL_URL = 'http://127.0.0.1';
+
 // ── Ollama en tu PC Windows (Red Puente) ──────────────────────────────────────
 // Pon aquí la IP de tu PC Windows (ver Paso 5 arriba)
 // Ejemplo: '192.168.1.45' o '192.168.0.12'
@@ -336,7 +341,7 @@ function getAllJoomlaEvents() {
         if (!empty($data)) return $data;
     }
 
-    $mainHtml = curlGet('http://localhost/index.php/cursos-feval');
+    $mainHtml = joomlaGet('/index.php/cursos-feval');
     if (!$mainHtml) return [];
 
     preg_match_all(
@@ -347,7 +352,7 @@ function getAllJoomlaEvents() {
 
     $events = [];
     foreach ($catPaths as $path) {
-        $catHtml = curlGet('http://localhost' . $path);
+        $catHtml = joomlaGet($path);
         if (!$catHtml) continue;
         libxml_use_internal_errors(true);
         $dom = new DOMDocument();
@@ -414,7 +419,7 @@ function fetchCourseDetails($courseName) {
     if (!$courseHref) return null;
 
     $courseUrl  = rtrim($PUBLIC_URL, '/') . $courseHref;
-    $courseHtml = curlGet('http://localhost' . $courseHref);
+    $courseHtml = joomlaGet($courseHref);
     if (!$courseHtml) {
         $result = ['url' => $courseUrl, 'text' => ''];
         file_put_contents($detailCache, json_encode($result));
@@ -548,14 +553,29 @@ function curlGet($url, $timeout = 15) {
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS      => 5,
         CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; FevalChatbot/1.0)',
-        CURLOPT_SSL_VERIFYPEER => false, // localhost usa HTTP, no SSL
+        CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_ENCODING       => 'utf-8',
-        CURLOPT_PROXY          => '',    // no usar proxies (localhost accesible directo)
+        CURLOPT_PROXY          => '',
     ]);
     $body = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     return ($body && $code === 200) ? $body : null;
+}
+
+/**
+ * Fetch de una ruta Joomla (/index.php/...) de forma interna.
+ * Prueba primero $JOOMLA_INTERNAL_URL (127.0.0.1), luego la URL pública.
+ * Así funciona tanto si Apache escucha en localhost como si no.
+ */
+function joomlaGet($path, $timeout = 15) {
+    global $JOOMLA_INTERNAL_URL, $PUBLIC_URL;
+    $internal = rtrim($JOOMLA_INTERNAL_URL, '/') . $path;
+    $result   = curlGet($internal, $timeout);
+    if ($result) return $result;
+    // Fallback a URL pública (más lento, pasa por Cloudflare, pero siempre funciona)
+    $external = rtrim($PUBLIC_URL, '/') . $path;
+    return curlGet($external, $timeout);
 }
 
 /**
@@ -578,7 +598,7 @@ function scrapeCoursesFromWeb($publicUrl) {
     $staleCache = (file_exists($cacheFile)) ? file_get_contents($cacheFile) : null;
 
     // Paso 1: obtener categorías de la página principal via localhost
-    $mainHtml = curlGet('http://localhost/index.php/cursos-feval');
+    $mainHtml = joomlaGet('/index.php/cursos-feval');
     if (!$mainHtml) return $staleCache;
 
     // Extraer rutas de categorías (soporta href antes o después de class)
@@ -593,7 +613,7 @@ function scrapeCoursesFromWeb($publicUrl) {
 
     // Paso 2: recorrer cada categoría y extraer cursos
     foreach ($catPaths as $path) {
-        $catHtml = curlGet('http://localhost' . $path);
+        $catHtml = joomlaGet($path);
         if (!$catHtml) continue;
 
         libxml_use_internal_errors(true);
@@ -632,7 +652,7 @@ function scrapeCoursesFromWeb($publicUrl) {
             // Visitar la página del curso para obtener descripción/contenido
             $description = '';
             if ($href) {
-                $courseHtml = curlGet('http://localhost' . $href);
+                $courseHtml = joomlaGet($href);
                 if ($courseHtml) {
                     $cdom = new DOMDocument();
                     $cdom->loadHTML('<?xml encoding="utf-8" ?>' . $courseHtml);
