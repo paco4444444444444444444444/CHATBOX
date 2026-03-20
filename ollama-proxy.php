@@ -130,13 +130,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['debug_scrape'])) {
     header('Content-Type: application/json; charset=utf-8');
     $internal_test = curlGet(rtrim($JOOMLA_INTERNAL_URL, '/') . '/index.php/cursos-feval', 8);
     $public_test   = curlGet(rtrim($PUBLIC_URL, '/') . '/index.php/cursos-feval', 8);
-    $events        = getAllJoomlaEvents();
+
+    // Test de paginación en el área cloud
+    $cloudPath = '/index.php/cursos24/cursos/area-de-cloud-analisis-de-datos-e-inteligencia-artifical';
+    $pagTest   = [];
+    for ($s = 0; $s <= 15; $s += 5) {
+        $testUrl  = rtrim($JOOMLA_INTERNAL_URL, '/') . $cloudPath . ($s > 0 ? '?start=' . $s : '');
+        $html     = curlGet($testUrl, 8);
+        preg_match_all('/class="[^"]*eb-event-link[^"]*"/', $html ?? '', $mx);
+        $pagTest['start_' . $s] = ['url' => $testUrl, 'html_len' => $html ? strlen($html) : 0, 'links_found' => count($mx[0])];
+    }
+
+    $events = getAllJoomlaEvents();
     echo json_encode([
         'internal_url'     => $JOOMLA_INTERNAL_URL,
         'internal_ok'      => $internal_test !== null,
         'internal_len'     => $internal_test ? strlen($internal_test) : 0,
         'public_ok'        => $public_test !== null,
         'public_len'       => $public_test ? strlen($public_test) : 0,
+        'pagination_test'  => $pagTest,
         'events_found'     => count($events),
         'all_titles'       => array_column($events, 'title'),
         'categories_found' => array_unique(array_map(fn($e) => preg_replace('/\/[^\/]+$/', '', $e['href']), $events)),
