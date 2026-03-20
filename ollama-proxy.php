@@ -447,54 +447,54 @@ function formatCourseList($courses) {
     return implode("\n", $lines) . "\n\nPreinscripción: {$catalogUrl}";
 }
 
-// Detectar si la pregunta es sobre cursos específicos y responder directamente
-$last_user_msg  = '';
-$last_bot_msg   = '';
+// ─── Extraer último mensaje del usuario y contexto de toda la conversación ────
+
+$last_user_msg = '';
 foreach (array_reverse($clean_messages) as $m) {
-    if ($m['role'] === 'user'      && $last_user_msg === '') $last_user_msg = $m['content'];
-    if ($m['role'] === 'assistant' && $last_bot_msg  === '') $last_bot_msg  = $m['content'];
-    if ($last_user_msg !== '' && $last_bot_msg !== '') break;
+    if ($m['role'] === 'user') { $last_user_msg = $m['content']; break; }
 }
 
 /**
- * Extrae del último mensaje del bot los nombres de cursos que aparecen
- * entre ** **, y devuelve los objetos del catálogo que coincidan.
- * Sirve para reducir el contexto de búsqueda a los cursos ya listados.
+ * Recorre TODOS los mensajes del asistente en la conversación y devuelve
+ * los cursos del catálogo mencionados en **negrita**, sin duplicados.
+ * Orden: los más recientes primero.
  */
-function coursesInBotMessage($botMsg, $catalog) {
-    if (empty($botMsg)) return [];
-    preg_match_all('/\*\*([^*\n]+)\*\*/', $botMsg, $m);
-    $mentioned = $m[1] ?? [];
-    if (empty($mentioned)) return [];
-
+function coursesInConversation($messages, $catalog) {
     $found = [];
-    foreach ($catalog as $c) {
-        foreach ($mentioned as $title) {
-            if (mb_strtolower(trim($title)) === mb_strtolower($c['nombre'])) {
-                $found[] = $c;
-                break;
+    $foundNames = [];
+    foreach (array_reverse($messages) as $m) {
+        if ($m['role'] !== 'assistant') continue;
+        preg_match_all('/\*\*([^*\n]+)\*\*/', $m['content'], $mt);
+        foreach (($mt[1] ?? []) as $title) {
+            $tl = mb_strtolower(trim($title));
+            foreach ($catalog as $c) {
+                if (mb_strtolower($c['nombre']) === $tl && !in_array($c['nombre'], $foundNames)) {
+                    $found[]      = $c;
+                    $foundNames[] = $c['nombre'];
+                }
             }
         }
     }
     return $found;
 }
 
-// ── Búsqueda con contexto conversacional ─────────────────────────────────────
-// 1. Si el bot acababa de listar cursos, intentar resolver la consulta actual
-//    dentro de ese subconjunto (el usuario puede referirse con palabras parciales).
-$context_catalog = coursesInBotMessage($last_bot_msg, $DIRECT_CATALOG);
-if (count($context_catalog) > 1) {
-    // Usar lógica AND dentro del contexto: todas las palabras deben coincidir
+// ── Búsqueda con contexto conversacional completo ────────────────────────────
+$context_catalog = coursesInConversation($clean_messages, $DIRECT_CATALOG);
+
+if (!empty($context_catalog)) {
+    // AND estricto: todas las palabras del query deben estar en el nombre
     $ctx_matches = searchCatalog($last_user_msg, $context_catalog, true);
+
+    // Solo usar contexto si resuelve a MENOS cursos que el contexto completo
+    // (evita mostrar contexto cuando el usuario pregunta algo nuevo)
     if ($ctx_matches !== null && count($ctx_matches) < count($context_catalog)) {
-        // El usuario ha refinado la lista anterior → usar esos resultados
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['content' => [['type' => 'text', 'text' => formatCourseList($ctx_matches)]]]);
         exit;
     }
 }
 
-// 2. Búsqueda normal en catálogo completo
+// ── Búsqueda normal en catálogo completo ─────────────────────────────────────
 $direct_matches = searchCatalog($last_user_msg, $DIRECT_CATALOG);
 if ($direct_matches !== null) {
     header('Content-Type: application/json; charset=utf-8');
