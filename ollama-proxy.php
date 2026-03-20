@@ -681,7 +681,7 @@ $faq_responses = [
      'answer' => "**FEVAL Formación** es la plataforma de formación TIC de la Institución Ferial de Extremadura. Ofrecemos más de 70 cursos TIC gratuitos en 2026, financiados por la Junta de Extremadura y el SEXPE.\n\nContacto: formacion@feval.com | 924 829 100 | 618 457 790"],
 
     // Recoger diplomas / horario sede
-    ['keys' => ['recoger diploma','recoger el diploma','horario diploma','horario feval','horario sede','horario oficina','instalaciones','don benito','paseo de feval'],
+    ['keys' => ['recoger','horario diploma','horario feval','horario sede','horario oficina','hora abren','qué hora','a que hora','cuando abren','instalaciones','don benito','paseo de feval'],
      'answer' => "Puedes recoger los diplomas de **lunes a viernes de 08:00h a 15:00h** en las instalaciones del Centro Tecnológico de FEVAL, sito en el Paseo de FEVAL s/n, Don Benito (Badajoz)."],
 
     // Cuándo llega el diploma
@@ -705,11 +705,11 @@ $faq_responses = [
      'answer' => "Los requisitos son mínimos:\n- **Empleados**: que tu puesto de trabajo esté en Extremadura.\n- **Desempleados**: ser demandante de empleo en cualquier Centro de Empleo de Extremadura.\n\nPara cursos avanzados se recomienda haber realizado previamente los cursos de nivel básico del mismo itinerario."],
 
     // Extremadura / fuera de la comunidad
-    ['keys' => ['fuera de extremadura','fuera de la comunidad','otra comunidad','no resido','no vivo en extremadura','teletrabaj'],
+    ['keys' => ['fuera de extremadura','fuera de la comunidad','otra comunidad','no resido en extremadura','no vivo en extremadura','teletrabaj','soy de madrid','soy de barcelona','soy de sevilla','soy de otro'],
      'answer' => "Los cursos son exclusivos para personas que **residan en Extremadura** o que, sin residir, **teletrabajen para una empresa con domicilio social en Extremadura**. Es un requisito del SEXPE al ser una iniciativa extremeña."],
 
     // Empleado/desempleado intercambio de plazas
-    ['keys' => ['curso de empleado','curso de ocupado','siendo desempleado','soy desempleado','desempleado puedo','curso para empleado','curso para ocupado','puedo hacer un curso de empleado','puedo hacer un curso de ocupado','acceder a un curso de empleado','acceder a un curso de ocupado','empleados puedo','ocupados puedo','30%'],
+    ['keys' => ['curso de empleado','curso de ocupado','siendo desempleado','desempleado puedo hacer','desempleado puedo acceder','desempleado puedo entrar','desempleado puedo realizar','curso para empleado','curso para ocupado','puedo hacer un curso de empleado','puedo hacer un curso de ocupado','acceder a un curso de empleado','acceder a un curso de ocupado','empleados puedo','ocupados puedo','30%','trabajo en una empresa extremeña','trabajo y quiero apuntarme'],
      'answer' => "Sí puedes. Los cursos son **preferentemente** para empleados o desempleados, pero si quedan plazas libres:\n- Hasta un **30% de plazas** de un curso de empleados/ocupados puede asignarse a desempleados.\n- Y viceversa (desempleados → empleados).\n\nSiempre sujeto a disponibilidad de plazas."],
 
     // Faltas / asistencia
@@ -741,7 +741,7 @@ $faq_responses = [
      'answer' => "Al crear tu cuenta recibirás un **correo de confirmación** (revisa también la carpeta de Spam). Debes confirmar el registro haciendo clic en el enlace del correo — hasta entonces la cuenta aparecerá como bloqueada.\n\nSi no recibes el correo, contacta: formacion@feval.com | 924 829 100 | 618 457 790"],
 
     // Error al crear cuenta / usuario en uso
-    ['keys' => ['error al crear','no me deja','nombre de usuario','usuario en uso','no puedo crear cuenta','no puedo registrarme'],
+    ['keys' => ['error al crear','me sale un error','me da error','no me deja','nombre de usuario','usuario en uso','no puedo crear cuenta','no puedo registrarme','error al registrar','fallo al crear'],
      'answer' => "El error más habitual es que el **nombre de usuario ya está en uso**. Prueba con uno diferente. Si el problema persiste, contacta con formacion@feval.com | 924 829 100 | 618 457 790"],
 
     // No sé si estoy seleccionado / no sé nada
