@@ -293,71 +293,64 @@ function searchCatalog($query, $catalog) {
 }
 
 /**
- * Busca la página de un curso en Joomla (por nombre) y devuelve descripción + contenidos.
- * Cachea el resultado 10 minutos para no ralentizar consultas repetidas.
- */
-/**
  * Devuelve ['text' => string, 'url' => string] o null.
- * 'url' es la URL pública completa de la página del curso en Joomla.
+ *
+ * Estrategia:
+ *  1. Caché JSON propia (10 min).
+ *  2. Parsear el caché de scraping (/tmp/feval_live_v1.txt) para URL + descripción.
+ *  3. Visitar la página del curso (vía localhost) para extraer contenido completo.
  */
 function fetchCourseDetails($courseName) {
     global $PUBLIC_URL;
-    $cacheFile = sys_get_temp_dir() . '/feval_detail_' . md5($courseName) . '.json';
-    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 600) {
-        $cached = json_decode(file_get_contents($cacheFile), true);
+    $detailCache = sys_get_temp_dir() . '/feval_detail_' . md5($courseName) . '.json';
+    if (file_exists($detailCache) && (time() - filemtime($detailCache)) < 600) {
+        $cached = json_decode(file_get_contents($detailCache), true);
         if ($cached !== null) return $cached;
     }
 
-    $mainHtml = curlGet('http://localhost/index.php/cursos-feval');
-    if (!$mainHtml) return '';
+    $nameL = mb_strtolower($courseName);
 
-    preg_match_all(
-        '/<a\s[^>]*class="[^"]*eb-category-title-link[^"]*"[^>]*href="([^"]+)"|<a\s[^>]*href="([^"]+)"[^>]*class="[^"]*eb-category-title-link[^"]*"/i',
-        $mainHtml, $m
-    );
-    $catPaths = array_unique(array_filter(array_merge($m[1] ?? [], $m[2] ?? [])));
+    // ── Paso 1: buscar en el caché de scraping ────────────────────────────────
+    $liveCache = sys_get_temp_dir() . '/feval_live_v1.txt';
+    $courseUrl  = '';
+    $cachedDesc = '';
 
-    // Primeras palabras significativas del nombre para matching flexible
-    $nameWords = array_slice(
-        array_filter(explode(' ', mb_strtolower($courseName)), fn($w) => mb_strlen($w) > 2),
-        0, 3
-    );
+    if (file_exists($liveCache)) {
+        $lines = file($liveCache, FILE_IGNORE_NEW_LINES);
+        foreach ($lines as $i => $line) {
+            // Líneas de curso: "- Nombre del curso | Inicio: ..."  o  "- Nombre del curso"
+            if (!preg_match('/^- (.+?)(?:\s*\|.*)?$/', $line, $lm)) continue;
+            $lineTitle = mb_strtolower(trim($lm[1]));
+            if ($lineTitle !== $nameL) continue;
 
-    foreach ($catPaths as $path) {
-        $catHtml = curlGet('http://localhost' . $path);
-        if (!$catHtml) continue;
-
-        libxml_use_internal_errors(true);
-        $dom = new DOMDocument();
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $catHtml);
-        libxml_clear_errors();
-        $xpath = new DOMXPath($dom);
-
-        foreach ($xpath->query('//a[contains(@class,"eb-event-link")]') as $link) {
-            $title = mb_strtolower(trim($link->textContent));
-            $href  = $link->getAttribute('href');
-            // Coincidencia: al menos 2 de las primeras 3 palabras del nombre deben estar en el título
-            $hits = 0;
-            foreach ($nameWords as $w) {
-                if (mb_strpos($title, $w) !== false) $hits++;
+            // Buscar URL y descripción en las líneas siguientes
+            for ($j = $i + 1; $j <= $i + 4 && $j < count($lines); $j++) {
+                $next = trim($lines[$j]);
+                if (preg_match('/^Descripci[oó]n:\s*(.+)/i', $next, $dm)) {
+                    $cachedDesc = $dm[1];
+                }
+                if (preg_match('/^Preinscripci[oó]n:\s*(https?:\/\/\S+)/i', $next, $um)) {
+                    $courseUrl = $um[1];
+                }
             }
-            if ($hits < max(1, count($nameWords) - 1)) continue;
+            break;
+        }
+    }
 
-            $courseUrl  = rtrim($PUBLIC_URL, '/') . $href;
-            $courseHtml = curlGet('http://localhost' . $href);
-            // Aunque no haya HTML devolvemos al menos la URL real del curso
-            if (!$courseHtml) {
-                $result = ['text' => '', 'url' => $courseUrl];
-                file_put_contents($cacheFile, json_encode($result));
-                return $result;
-            }
-
-            $cdom = new DOMDocument();
-            $cdom->loadHTML('<?xml encoding="utf-8" ?>' . $courseHtml);
+    // ── Paso 2: visitar la página del curso para contenido completo ───────────
+    $fullText = '';
+    if ($courseUrl) {
+        // Convertir URL pública a localhost para evitar bloqueos externos
+        $localHref = parse_url($courseUrl, PHP_URL_PATH)
+                   . (parse_url($courseUrl, PHP_URL_QUERY) ? '?' . parse_url($courseUrl, PHP_URL_QUERY) : '');
+        $courseHtml = curlGet('http://localhost' . $localHref);
+        if ($courseHtml) {
+            libxml_use_internal_errors(true);
+            $dom = new DOMDocument();
+            $dom->loadHTML('<?xml encoding="utf-8" ?>' . $courseHtml);
             libxml_clear_errors();
-            $cxpath = new DOMXPath($cdom);
+            $xp = new DOMXPath($dom);
 
-            // Selectores de más específico a más genérico
             $selectors = [
                 '//*[contains(@class,"eb-event-description")]',
                 '//*[contains(@class,"eb-event-detail-description")]',
@@ -367,13 +360,12 @@ function fetchCourseDetails($courseName) {
                 '//*[contains(@class,"eb-event-detail")]',
                 '//div[contains(@class,"item-page")]',
                 '//main//article',
-                '//div[@id="content"]',
-                '//div[@id="main"]',
             ];
 
-            /** Extrae texto preservando párrafos y listas de un nodo DOM */
-            $extractText = function($node) {
-                // Intentar con hijos directos (párrafos + listas)
+            foreach ($selectors as $sel) {
+                $node = $xp->query($sel)->item(0);
+                if (!$node) continue;
+
                 $text = '';
                 foreach ($node->childNodes as $child) {
                     $tag = strtolower($child->nodeName ?? '');
@@ -385,34 +377,35 @@ function fetchCourseDetails($courseName) {
                             }
                         }
                         $text .= "\n";
-                    } elseif (in_array($tag, ['p','h2','h3','h4','h5','strong','b'])) {
+                    } elseif (in_array($tag, ['p','h2','h3','h4','h5'])) {
                         $t = trim(strip_tags($child->textContent));
                         if ($t) $text .= "{$t}\n\n";
                     }
                 }
                 $text = trim(preg_replace('/\n{3,}/', "\n\n", $text));
-                // Fallback plano si no hay estructura
                 if (mb_strlen($text) < 30) {
                     $text = trim(preg_replace('/\s+/', ' ', strip_tags($node->textContent)));
                 }
-                return $text;
-            };
-
-            foreach ($selectors as $sel) {
-                $node = $cxpath->query($sel)->item(0);
-                if (!$node) continue;
-                $text = $extractText($node);
                 if (mb_strlen($text) > 30) {
-                    $result = ['text' => mb_substr($text, 0, 3000), 'url' => $courseUrl];
-                    file_put_contents($cacheFile, json_encode($result));
-                    return $result;
+                    $fullText = mb_substr($text, 0, 3000);
+                    break;
                 }
             }
         }
     }
 
-    file_put_contents($cacheFile, json_encode(null));
-    return null;
+    // Sin URL ni texto: no pudimos encontrar el curso
+    if (!$courseUrl && !$cachedDesc && !$fullText) {
+        file_put_contents($detailCache, json_encode(null));
+        return null;
+    }
+
+    $result = [
+        'url'  => $courseUrl ?: (rtrim($PUBLIC_URL, '/') . '/index.php/cursos-feval'),
+        'text' => $fullText ?: $cachedDesc,
+    ];
+    file_put_contents($detailCache, json_encode($result));
+    return $result;
 }
 
 function formatCourseList($courses) {
