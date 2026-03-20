@@ -283,11 +283,16 @@ function searchCatalog($query, $catalog) {
  * Busca la página de un curso en Joomla (por nombre) y devuelve descripción + contenidos.
  * Cachea el resultado 10 minutos para no ralentizar consultas repetidas.
  */
+/**
+ * Devuelve ['text' => string, 'url' => string] o null.
+ * 'url' es la URL pública completa de la página del curso en Joomla.
+ */
 function fetchCourseDetails($courseName) {
-    $cacheFile = sys_get_temp_dir() . '/feval_detail_' . md5($courseName) . '.txt';
+    global $PUBLIC_URL;
+    $cacheFile = sys_get_temp_dir() . '/feval_detail_' . md5($courseName) . '.json';
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 600) {
-        $cached = file_get_contents($cacheFile);
-        if ($cached !== false) return $cached;
+        $cached = json_decode(file_get_contents($cacheFile), true);
+        if ($cached !== null) return $cached;
     }
 
     $mainHtml = curlGet('http://localhost/index.php/cursos-feval');
@@ -325,8 +330,9 @@ function fetchCourseDetails($courseName) {
             }
             if ($hits < max(1, count($nameWords) - 1)) continue;
 
+            $courseUrl  = rtrim($PUBLIC_URL, '/') . $href;
             $courseHtml = curlGet('http://localhost' . $href);
-            if (!$courseHtml) { file_put_contents($cacheFile, ''); return ''; }
+            if (!$courseHtml) { file_put_contents($cacheFile, json_encode(null)); return null; }
 
             $cdom = new DOMDocument();
             $cdom->loadHTML('<?xml encoding="utf-8" ?>' . $courseHtml);
@@ -370,27 +376,28 @@ function fetchCourseDetails($courseName) {
                 }
 
                 if (mb_strlen($text) > 30) {
-                    $result = mb_substr($text, 0, 3000);
-                    file_put_contents($cacheFile, $result);
+                    $result = ['text' => mb_substr($text, 0, 3000), 'url' => $courseUrl];
+                    file_put_contents($cacheFile, json_encode($result));
                     return $result;
                 }
             }
         }
     }
 
-    file_put_contents($cacheFile, '');
-    return '';
+    file_put_contents($cacheFile, json_encode(null));
+    return null;
 }
 
 function formatCourseList($courses) {
     global $PUBLIC_URL;
     $catalogUrl = rtrim($PUBLIC_URL, '/') . '/index.php/cursos-feval';
     if (count($courses) === 1) {
-        $c = $courses[0];
-        $out = "**{$c['nombre']}**\n- Horas: {$c['h']}h\n- Dirigido a: {$c['pub']}\n- Modalidad: {$c['mod']}\n- Fechas: {$c['ini']} – {$c['fin']}\n- Días: {$c['dias']}, {$c['hor']}\n- Preinscripción: {$catalogUrl}";
+        $c       = $courses[0];
         $details = fetchCourseDetails($c['nombre']);
-        if ($details) {
-            $out .= "\n\n" . $details;
+        $url     = ($details && !empty($details['url'])) ? $details['url'] : $catalogUrl;
+        $out = "**{$c['nombre']}**\n- Horas: {$c['h']}h\n- Dirigido a: {$c['pub']}\n- Modalidad: {$c['mod']}\n- Fechas: {$c['ini']} – {$c['fin']}\n- Días: {$c['dias']}, {$c['hor']}\n- Preinscripción: {$url}";
+        if ($details && !empty($details['text'])) {
+            $out .= "\n\n" . $details['text'];
         }
         return $out;
     }
