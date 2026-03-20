@@ -420,8 +420,12 @@ function formatCourseList($courses) {
     if (count($courses) === 1) {
         $c       = $courses[0];
         $details = fetchCourseDetails($c['nombre']);
-        $url     = ($details && !empty($details['url'])) ? $details['url'] : $catalogUrl;
-        $out = "**{$c['nombre']}**\n- Horas: {$c['h']}h\n- Dirigido a: {$c['pub']}\n- Modalidad: {$c['mod']}\n- Fechas: {$c['ini']} – {$c['fin']}\n- Días: {$c['dias']}, {$c['hor']}\n- Preinscripción: {$url}";
+        $out = "**{$c['nombre']}**\n- Horas: {$c['h']}h\n- Dirigido a: {$c['pub']}\n- Modalidad: {$c['mod']}\n- Fechas: {$c['ini']} – {$c['fin']}\n- Días: {$c['dias']}, {$c['hor']}";
+        if ($details && !empty($details['url'])) {
+            $out .= "\n- Preinscripción: {$details['url']}";
+        } else {
+            $out .= "\n- Preinscripción: aún no disponible — consulta {$catalogUrl}";
+        }
         if ($details && !empty($details['text'])) {
             $out .= "\n\n" . $details['text'];
         }
