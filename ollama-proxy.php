@@ -300,7 +300,7 @@ foreach (array_reverse($clean_messages) as $m) {
 $direct_matches = searchCatalog($last_user_msg, $DIRECT_CATALOG);
 if ($direct_matches !== null) {
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['reply' => formatCourseList($direct_matches)]);
+    echo json_encode(['content' => [['type' => 'text', 'text' => formatCourseList($direct_matches)]]]);
     exit;
 }
 
