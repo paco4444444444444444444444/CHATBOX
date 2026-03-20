@@ -332,26 +332,35 @@ function fetchCourseDetails($courseName) {
 
             $courseUrl  = rtrim($PUBLIC_URL, '/') . $href;
             $courseHtml = curlGet('http://localhost' . $href);
-            if (!$courseHtml) { file_put_contents($cacheFile, json_encode(null)); return null; }
+            // Aunque no haya HTML devolvemos al menos la URL real del curso
+            if (!$courseHtml) {
+                $result = ['text' => '', 'url' => $courseUrl];
+                file_put_contents($cacheFile, json_encode($result));
+                return $result;
+            }
 
             $cdom = new DOMDocument();
             $cdom->loadHTML('<?xml encoding="utf-8" ?>' . $courseHtml);
             libxml_clear_errors();
             $cxpath = new DOMXPath($cdom);
 
+            // Selectores de más específico a más genérico
             $selectors = [
                 '//*[contains(@class,"eb-event-description")]',
                 '//*[contains(@class,"eb-event-detail-description")]',
                 '//*[contains(@class,"event-description")]',
+                '//*[contains(@class,"eb-custom-field")]',
                 '//div[contains(@class,"item-page")]//div[contains(@class,"article-fulltext")]',
                 '//*[contains(@class,"eb-event-detail")]',
+                '//div[contains(@class,"item-page")]',
+                '//main//article',
+                '//div[@id="content"]',
+                '//div[@id="main"]',
             ];
 
-            foreach ($selectors as $sel) {
-                $node = $cxpath->query($sel)->item(0);
-                if (!$node) continue;
-
-                // Recorrer hijos preservando estructura de listas y párrafos
+            /** Extrae texto preservando párrafos y listas de un nodo DOM */
+            $extractText = function($node) {
+                // Intentar con hijos directos (párrafos + listas)
                 $text = '';
                 foreach ($node->childNodes as $child) {
                     $tag = strtolower($child->nodeName ?? '');
@@ -363,18 +372,23 @@ function fetchCourseDetails($courseName) {
                             }
                         }
                         $text .= "\n";
-                    } elseif (in_array($tag, ['p','h2','h3','h4','h5'])) {
+                    } elseif (in_array($tag, ['p','h2','h3','h4','h5','strong','b'])) {
                         $t = trim(strip_tags($child->textContent));
                         if ($t) $text .= "{$t}\n\n";
                     }
                 }
                 $text = trim(preg_replace('/\n{3,}/', "\n\n", $text));
-
-                // Fallback: texto plano si no encontramos estructura
+                // Fallback plano si no hay estructura
                 if (mb_strlen($text) < 30) {
                     $text = trim(preg_replace('/\s+/', ' ', strip_tags($node->textContent)));
                 }
+                return $text;
+            };
 
+            foreach ($selectors as $sel) {
+                $node = $cxpath->query($sel)->item(0);
+                if (!$node) continue;
+                $text = $extractText($node);
                 if (mb_strlen($text) > 30) {
                     $result = ['text' => mb_substr($text, 0, 3000), 'url' => $courseUrl];
                     file_put_contents($cacheFile, json_encode($result));
