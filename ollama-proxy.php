@@ -624,6 +624,9 @@ function coursesInConversation($messages, $catalog) {
 
 // ── FAQ directas: respuestas fijas para preguntas frecuentes ─────────────────
 $faq_q = mb_strtolower(trim($last_user_msg));
+// Normalizar sinónimos frecuentes
+$faq_q = str_replace(['ocupado','ocupados','trabajador','trabajadores'], ['empleado','empleados','empleado','empleados'], $faq_q);
+$faq_q = str_replace(['en paro','parado','parada'], ['desempleado','desempleado','desempleado'], $faq_q);
 $faq_responses = [
     // Gratuidad
     ['keys' => ['gratis','gratuito','gratuita','precio','coste','cuesta','pagar','pago','financiaci'],
@@ -666,8 +669,8 @@ $faq_responses = [
      'answer' => "Los cursos son exclusivos para personas que **residan en Extremadura** o que, sin residir, **teletrabajen para una empresa con domicilio social en Extremadura**. Es un requisito del SEXPE al ser una iniciativa extremeña."],
 
     // Empleado/desempleado intercambio de plazas
-    ['keys' => ['desempleado.*empleado','empleado.*desempleado','soy desempleado.*curso de empleado','soy empleado.*curso de desempleado','30%','plazas de empleado','plazas de desempleado'],
-     'answer' => "Sí es posible. Los cursos son **preferentemente** para empleados o desempleados, pero si quedan plazas libres:\n- Hasta un **30% de plazas** de un curso de empleados puede asignarse a desempleados.\n- Y viceversa.\n\nSiempre sujeto a disponibilidad."],
+    ['keys' => ['curso de empleado','curso de ocupado','siendo desempleado','soy desempleado','desempleado puedo','curso para empleado','curso para ocupado','puedo hacer un curso de empleado','puedo hacer un curso de ocupado','acceder a un curso de empleado','acceder a un curso de ocupado','empleados puedo','ocupados puedo','30%'],
+     'answer' => "Sí puedes. Los cursos son **preferentemente** para empleados o desempleados, pero si quedan plazas libres:\n- Hasta un **30% de plazas** de un curso de empleados/ocupados puede asignarse a desempleados.\n- Y viceversa (desempleados → empleados).\n\nSiempre sujeto a disponibilidad de plazas."],
 
     // Faltas / asistencia
     ['keys' => ['faltar','falta','faltas','asistencia','ausencia','puedo faltar'],
