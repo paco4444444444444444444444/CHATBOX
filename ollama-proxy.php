@@ -567,7 +567,7 @@ function formatCourseList($courses) {
         if ($details && !empty($details['url'])) {
             $out .= "\n- Preinscripción: {$details['url']}";
         } else {
-            $out .= "\n- Preinscripción: aún no disponible — consulta {$catalogUrl}";
+            $out .= "\n- Preinscripción: {$catalogUrl}";
         }
         if ($details && !empty($details['text'])) {
             $out .= "\n\n" . $details['text'];
