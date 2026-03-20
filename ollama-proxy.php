@@ -326,24 +326,18 @@ function extractNodeText($node) {
 }
 
 /**
- * Devuelve ['text' => string, 'url' => string] o null.
- *
- * Busca el curso DIRECTAMENTE en las páginas de categorías de Joomla usando
- * matching EXACTO del título del enlace — evita errores de la caché de scraping.
+ * Carga TODOS los eventos de Joomla de una vez y los cachea 1 hora.
+ * Devuelve array de ['title'=>string, 'href'=>string].
  */
-function fetchCourseDetails($courseName) {
-    global $PUBLIC_URL;
-    $detailCache = sys_get_temp_dir() . '/feval_detail2_' . md5($courseName) . '.json';
-    if (file_exists($detailCache) && (time() - filemtime($detailCache)) < 3600) {
-        $cached = json_decode(file_get_contents($detailCache), true);
-        if ($cached !== null) return $cached;
+function getAllJoomlaEvents() {
+    $cacheFile = sys_get_temp_dir() . '/feval_all_events.json';
+    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 3600) {
+        $data = json_decode(file_get_contents($cacheFile), true);
+        if (!empty($data)) return $data;
     }
 
-    $nameL = mb_strtolower(trim(preg_replace('/\s+/', ' ', $courseName)));
-
-    // ── Paso 1: obtener lista de categorías ───────────────────────────────────
     $mainHtml = curlGet('http://localhost/index.php/cursos-feval');
-    if (!$mainHtml) return null;
+    if (!$mainHtml) return [];
 
     preg_match_all(
         '/<a\s[^>]*class="[^"]*eb-category-title-link[^"]*"[^>]*href="([^"]+)"|<a\s[^>]*href="([^"]+)"[^>]*class="[^"]*eb-category-title-link[^"]*"/i',
@@ -351,60 +345,77 @@ function fetchCourseDetails($courseName) {
     );
     $catPaths = array_unique(array_filter(array_merge($m[1] ?? [], $m[2] ?? [])));
 
-    // Palabras clave del nombre (sin stop words, mín 3 chars) para fallback
-    $kwStop = ['de','del','la','el','los','las','en','con','para','por','un','una','y','e','o','a'];
-    $keywords = array_values(array_filter(
-        explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $nameL)),
-        fn($w) => mb_strlen($w) >= 3 && !in_array($w, $kwStop)
-    ));
-
-    // ── Paso 2: buscar en cada categoría — exacto primero, luego por palabras clave
-    $courseHref  = '';
-    $bestHref    = '';
-    $bestScore   = 0;
-
+    $events = [];
     foreach ($catPaths as $path) {
         $catHtml = curlGet('http://localhost' . $path);
         if (!$catHtml) continue;
-
         libxml_use_internal_errors(true);
         $dom = new DOMDocument();
         $dom->loadHTML('<?xml encoding="utf-8" ?>' . $catHtml);
         libxml_clear_errors();
         $xp = new DOMXPath($dom);
-
         foreach ($xp->query('//a[contains(@class,"eb-event-link")]') as $link) {
-            $linkTitle = mb_strtolower(trim(preg_replace('/\s+/', ' ', $link->textContent)));
-            $href      = $link->getAttribute('href');
-
-            // Coincidencia exacta → usar directamente
-            if ($linkTitle === $nameL) { $courseHref = $href; break 2; }
-
-            // Coincidencia por palabras clave: todas deben aparecer en el título del enlace
-            if (!empty($keywords)) {
-                $hits = 0;
-                foreach ($keywords as $kw) {
-                    if (mb_strpos($linkTitle, $kw) !== false) $hits++;
-                }
-                if ($hits === count($keywords) && $hits > $bestScore) {
-                    $bestScore = $hits;
-                    $bestHref  = $href;
-                }
-            }
+            $t = trim(preg_replace('/\s+/', ' ', $link->textContent));
+            $h = $link->getAttribute('href');
+            if ($t && $h) $events[] = ['title' => $t, 'href' => $h];
         }
-        if ($courseHref) break;
     }
 
-    // Usar mejor coincidencia por palabras clave si no hubo exacta
-    if (!$courseHref) $courseHref = $bestHref;
+    if (!empty($events)) file_put_contents($cacheFile, json_encode($events));
+    return $events;
+}
+
+/**
+ * Encuentra el href del evento de Joomla que mejor coincide con el nombre del curso.
+ * 1. Match exacto de título
+ * 2. Todas las palabras clave del nombre deben estar en el título del evento
+ */
+function findEventHref($courseName, $allEvents) {
+    $nameL = mb_strtolower(trim(preg_replace('/\s+/', ' ', $courseName)));
+    $kwStop = ['de','del','la','el','los','las','en','con','para','por','un','una','y','e','o','a','con'];
+    $keywords = array_values(array_filter(
+        explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $nameL)),
+        fn($w) => mb_strlen($w) >= 3 && !in_array($w, $kwStop)
+    ));
+
+    $bestHref  = '';
+    $bestScore = 0;
+
+    foreach ($allEvents as $ev) {
+        $evL = mb_strtolower(trim(preg_replace('/\s+/', ' ', $ev['title'])));
+        if ($evL === $nameL) return $ev['href']; // exacto
+        if (empty($keywords)) continue;
+        $hits = 0;
+        foreach ($keywords as $kw) {
+            if (mb_strpos($evL, $kw) !== false) $hits++;
+        }
+        // Todas las palabras clave deben coincidir
+        if ($hits === count($keywords) && $hits > $bestScore) {
+            $bestScore = $hits;
+            $bestHref  = $ev['href'];
+        }
+    }
+    return $bestHref;
+}
+
+/**
+ * Devuelve ['url' => string, 'text' => string] o null.
+ */
+function fetchCourseDetails($courseName) {
+    global $PUBLIC_URL;
+    $detailCache = sys_get_temp_dir() . '/feval_detail3_' . md5($courseName) . '.json';
+    if (file_exists($detailCache) && (time() - filemtime($detailCache)) < 3600) {
+        $cached = json_decode(file_get_contents($detailCache), true);
+        if ($cached !== null) return $cached;
+    }
+
+    $allEvents  = getAllJoomlaEvents();
+    $courseHref = findEventHref($courseName, $allEvents);
     if (!$courseHref) return null;
 
     $courseUrl  = rtrim($PUBLIC_URL, '/') . $courseHref;
-
-    // ── Paso 3: visitar la página del curso y verificar que el título coincide ─
     $courseHtml = curlGet('http://localhost' . $courseHref);
     if (!$courseHtml) {
-        // Sin contenido pero tenemos la URL correcta
         $result = ['url' => $courseUrl, 'text' => ''];
         file_put_contents($detailCache, json_encode($result));
         return $result;
@@ -416,19 +427,26 @@ function fetchCourseDetails($courseName) {
     libxml_clear_errors();
     $cxp = new DOMXPath($cdom);
 
-    // Verificar que la página corresponde al curso correcto
+    // Verificar con palabras clave (no exacto) que la página es correcta
     $pageHeading = $cxp->query('//*[contains(@class,"eb-page-heading")]')->item(0);
     if ($pageHeading) {
-        $pageTitle = mb_strtolower(trim(preg_replace('/\s+/', ' ', $pageHeading->textContent)));
-        if ($pageTitle !== $nameL) {
-            // Título no coincide — URL incorrecta en Joomla, devolver solo URL sin texto
+        $kwStop  = ['de','del','la','el','los','las','en','con','para','por','un','una','y','e','o','a'];
+        $nameL   = mb_strtolower($courseName);
+        $kwCourse = array_values(array_filter(
+            explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $nameL)),
+            fn($w) => mb_strlen($w) >= 3 && !in_array($w, $kwStop)
+        ));
+        $pageL = mb_strtolower($pageHeading->textContent);
+        $hits  = 0;
+        foreach ($kwCourse as $kw) { if (mb_strpos($pageL, $kw) !== false) $hits++; }
+        if (!empty($kwCourse) && $hits < ceil(count($kwCourse) * 0.6)) {
+            // Menos del 60% de palabras coinciden → contenido incorrecto
             $result = ['url' => $courseUrl, 'text' => ''];
             file_put_contents($detailCache, json_encode($result));
             return $result;
         }
     }
 
-    // ── Paso 4: extraer descripción con selector exacto de clase ─────────────
     $fullText = '';
     $descNode = $cxp->query('//*[contains(concat(" ",normalize-space(@class)," ")," eb-description ")]')->item(0);
     if ($descNode) {
