@@ -396,18 +396,11 @@ function fetchCourseDetails($courseName) {
             libxml_clear_errors();
             $xp = new DOMXPath($dom);
 
-            // Combinar eb-description + eb-description-details (clases reales de este Joomla)
-            $textParts = [];
-            foreach (['//*[contains(@class,"eb-description")]', '//*[contains(@class,"eb-description-details")]'] as $sel) {
-                $nodes = $xp->query($sel);
-                for ($ni = 0; $ni < $nodes->length; $ni++) {
-                    $node = $nodes->item($ni);
-                    $t = extractNodeText($node);
-                    if (mb_strlen($t) > 10) $textParts[] = $t;
-                }
-            }
-            if (!empty($textParts)) {
-                $fullText = mb_substr(implode("\n\n", $textParts), 0, 3000);
+            // Selector exacto para evitar que "eb-description" coincida con "eb-description-details"
+            $exactDesc = '//*[contains(concat(" ",normalize-space(@class)," ")," eb-description ")]';
+            $descNode  = $xp->query($exactDesc)->item(0);
+            if ($descNode) {
+                $fullText = mb_substr(extractNodeText($descNode), 0, 3000);
             }
         }
     }
@@ -602,17 +595,11 @@ function scrapeCoursesFromWeb($publicUrl) {
                     libxml_clear_errors();
                     $cxpath = new DOMXPath($cdom);
 
-                    // Clases reales de este Event Booking: eb-description + eb-description-details
-                    $descParts = [];
-                    foreach (['//*[contains(@class,"eb-description")]', '//*[contains(@class,"eb-description-details")]'] as $dsel) {
-                        $dnodes = $cxpath->query($dsel);
-                        for ($di = 0; $di < $dnodes->length; $di++) {
-                            $t = trim(preg_replace('/\s+/', ' ', strip_tags($dnodes->item($di)->textContent)));
-                            if (mb_strlen($t) > 10) $descParts[] = $t;
-                        }
-                    }
-                    if (!empty($descParts)) {
-                        $description = mb_substr(implode(' | ', $descParts), 0, 600);
+                    // Selector exacto: eb-description (no eb-description-details)
+                    $dn = $cxpath->query('//*[contains(concat(" ",normalize-space(@class)," ")," eb-description ")]')->item(0);
+                    if ($dn) {
+                        $t = trim(preg_replace('/\s+/', ' ', strip_tags($dn->textContent)));
+                        if (mb_strlen($t) > 10) $description = mb_substr($t, 0, 600);
                     }
                 }
             }
