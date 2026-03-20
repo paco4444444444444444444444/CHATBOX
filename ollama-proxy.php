@@ -131,14 +131,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['debug_scrape'])) {
     $internal_test = curlGet(rtrim($JOOMLA_INTERNAL_URL, '/') . '/index.php/cursos-feval', 8);
     $public_test   = curlGet(rtrim($PUBLIC_URL, '/') . '/index.php/cursos-feval', 8);
 
-    // Test de paginación en el área cloud
-    $cloudPath = '/index.php/cursos24/cursos/area-de-cloud-analisis-de-datos-e-inteligencia-artifical';
-    $pagTest   = [];
-    for ($s = 0; $s <= 15; $s += 5) {
-        $testUrl  = rtrim($JOOMLA_INTERNAL_URL, '/') . $cloudPath . ($s > 0 ? '?start=' . $s : '');
-        $html     = curlGet($testUrl, 8);
-        preg_match_all('/class="[^"]*eb-event-link[^"]*"/', $html ?? '', $mx);
-        $pagTest['start_' . $s] = ['url' => $testUrl, 'html_len' => $html ? strlen($html) : 0, 'links_found' => count($mx[0])];
+    // Test de paginación para todas las categorías
+    $mainHtmlDbg = curlGet(rtrim($JOOMLA_INTERNAL_URL, '/') . '/index.php/cursos-feval', 8) ?? '';
+    preg_match_all(
+        '/<a\s[^>]*class="[^"]*eb-category-title-link[^"]*"[^>]*href="([^"]+)"|<a\s[^>]*href="([^"]+)"[^>]*class="[^"]*eb-category-title-link[^"]*"/i',
+        $mainHtmlDbg, $mDbg
+    );
+    $catPathsDbg = array_unique(array_filter(array_merge($mDbg[1] ?? [], $mDbg[2] ?? [])));
+    $pagTest = [];
+    foreach ($catPathsDbg as $catPath) {
+        $catKey = basename($catPath);
+        $pagTest[$catKey] = [];
+        $prevLinks = -1;
+        for ($s = 0; $s <= 30; $s += 5) {
+            $testUrl = rtrim($JOOMLA_INTERNAL_URL, '/') . $catPath . ($s > 0 ? '?start=' . $s : '');
+            $html    = curlGet($testUrl, 8);
+            preg_match_all('/class="[^"]*eb-event-link[^"]*"/', $html ?? '', $mx);
+            $found = count($mx[0]);
+            $pagTest[$catKey]['start_' . $s] = $found;
+            if ($found === 0 || $found === $prevLinks) break; // página repetida o vacía
+            $prevLinks = $found;
+        }
     }
 
     $events = getAllJoomlaEvents();
@@ -386,7 +399,6 @@ function getAllJoomlaEvents() {
     $pagesToScan = ['/index.php/cursos-feval'];
     foreach ($catPaths as $path) {
         $pagesToScan[] = $path;
-        $pagesToScan[] = $path . '?limitstart=0&limit=200'; // forzar todos los eventos
     }
     $pagesToScan = array_unique($pagesToScan);
 
