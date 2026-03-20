@@ -139,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['debug_scrape'])) {
         'public_len'       => $public_test ? strlen($public_test) : 0,
         'events_found'     => count($events),
         'events_sample'    => array_slice($events, 0, 5),
+        'feval_matches'    => array_values(array_filter($events, fn($e) => mb_stripos($e['title'], 'cloud') !== false || mb_stripos($e['title'], 'azure') !== false || mb_stripos($e['title'], 'introduc') !== false)),
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -362,25 +363,33 @@ function getAllJoomlaEvents() {
     $mainHtml = joomlaGet('/index.php/cursos-feval');
     if (!$mainHtml) return [];
 
+    // Páginas a escanear: la principal + todas las subcategorías
+    $pagesToScan = ['/index.php/cursos-feval'];
+
     preg_match_all(
         '/<a\s[^>]*class="[^"]*eb-category-title-link[^"]*"[^>]*href="([^"]+)"|<a\s[^>]*href="([^"]+)"[^>]*class="[^"]*eb-category-title-link[^"]*"/i',
         $mainHtml, $m
     );
     $catPaths = array_unique(array_filter(array_merge($m[1] ?? [], $m[2] ?? [])));
+    $pagesToScan = array_unique(array_merge($pagesToScan, $catPaths));
 
     $events = [];
-    foreach ($catPaths as $path) {
-        $catHtml = joomlaGet($path);
-        if (!$catHtml) continue;
+    $seen   = [];
+    foreach ($pagesToScan as $path) {
+        $html = ($path === '/index.php/cursos-feval') ? $mainHtml : joomlaGet($path);
+        if (!$html) continue;
         libxml_use_internal_errors(true);
         $dom = new DOMDocument();
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $catHtml);
+        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
         libxml_clear_errors();
         $xp = new DOMXPath($dom);
         foreach ($xp->query('//a[contains(@class,"eb-event-link")]') as $link) {
             $t = trim(preg_replace('/\s+/', ' ', $link->textContent));
             $h = $link->getAttribute('href');
-            if ($t && $h) $events[] = ['title' => $t, 'href' => $h];
+            if ($t && $h && !isset($seen[$h])) {
+                $seen[$h]  = true;
+                $events[] = ['title' => $t, 'href' => $h];
+            }
         }
     }
 
