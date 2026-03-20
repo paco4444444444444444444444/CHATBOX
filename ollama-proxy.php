@@ -351,8 +351,18 @@ function fetchCourseDetails($courseName) {
     );
     $catPaths = array_unique(array_filter(array_merge($m[1] ?? [], $m[2] ?? [])));
 
-    // ── Paso 2: buscar en cada categoría por título EXACTO ────────────────────
-    $courseHref = '';
+    // Palabras clave del nombre (sin stop words, mín 3 chars) para fallback
+    $kwStop = ['de','del','la','el','los','las','en','con','para','por','un','una','y','e','o','a'];
+    $keywords = array_values(array_filter(
+        explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $nameL)),
+        fn($w) => mb_strlen($w) >= 3 && !in_array($w, $kwStop)
+    ));
+
+    // ── Paso 2: buscar en cada categoría — exacto primero, luego por palabras clave
+    $courseHref  = '';
+    $bestHref    = '';
+    $bestScore   = 0;
+
     foreach ($catPaths as $path) {
         $catHtml = curlGet('http://localhost' . $path);
         if (!$catHtml) continue;
@@ -365,12 +375,28 @@ function fetchCourseDetails($courseName) {
 
         foreach ($xp->query('//a[contains(@class,"eb-event-link")]') as $link) {
             $linkTitle = mb_strtolower(trim(preg_replace('/\s+/', ' ', $link->textContent)));
-            if ($linkTitle !== $nameL) continue;
-            $courseHref = $link->getAttribute('href');
-            break 2; // encontrado — salir de ambos bucles
+            $href      = $link->getAttribute('href');
+
+            // Coincidencia exacta → usar directamente
+            if ($linkTitle === $nameL) { $courseHref = $href; break 2; }
+
+            // Coincidencia por palabras clave: todas deben aparecer en el título del enlace
+            if (!empty($keywords)) {
+                $hits = 0;
+                foreach ($keywords as $kw) {
+                    if (mb_strpos($linkTitle, $kw) !== false) $hits++;
+                }
+                if ($hits === count($keywords) && $hits > $bestScore) {
+                    $bestScore = $hits;
+                    $bestHref  = $href;
+                }
+            }
         }
+        if ($courseHref) break;
     }
 
+    // Usar mejor coincidencia por palabras clave si no hubo exacta
+    if (!$courseHref) $courseHref = $bestHref;
     if (!$courseHref) return null;
 
     $courseUrl  = rtrim($PUBLIC_URL, '/') . $courseHref;
