@@ -138,8 +138,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['debug_scrape'])) {
         'public_ok'        => $public_test !== null,
         'public_len'       => $public_test ? strlen($public_test) : 0,
         'events_found'     => count($events),
-        'events_sample'    => array_slice($events, 0, 5),
-        'feval_matches'    => array_values(array_filter($events, fn($e) => mb_stripos($e['title'], 'cloud') !== false || mb_stripos($e['title'], 'azure') !== false || mb_stripos($e['title'], 'introduc') !== false)),
+        'all_titles'       => array_column($events, 'title'),
+        'categories_found' => array_unique(array_map(fn($e) => preg_replace('/\/[^\/]+$/', '', $e['href']), $events)),
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     exit;
 }
