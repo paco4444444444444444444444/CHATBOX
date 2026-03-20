@@ -142,15 +142,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['debug_scrape'])) {
     foreach ($catPathsDbg as $catPath) {
         $catKey = basename($catPath);
         $pagTest[$catKey] = [];
-        $prevLinks = -1;
-        for ($s = 0; $s <= 30; $s += 5) {
+        $seenHrefs = [];
+        for ($s = 0; $s <= 50; $s += 5) {
             $testUrl = rtrim($JOOMLA_INTERNAL_URL, '/') . $catPath . ($s > 0 ? '?start=' . $s : '');
             $html    = curlGet($testUrl, 8);
-            preg_match_all('/class="[^"]*eb-event-link[^"]*"/', $html ?? '', $mx);
-            $found = count($mx[0]);
-            $pagTest[$catKey]['start_' . $s] = $found;
-            if ($found === 0 || $found === $prevLinks) break; // página repetida o vacía
-            $prevLinks = $found;
+            preg_match_all('/eb-event-link[^>]*href="([^"]+)"|href="([^"]+)"[^>]*eb-event-link/', $html ?? '', $mx);
+            $hrefs   = array_unique(array_filter(array_merge($mx[1] ?? [], $mx[2] ?? [])));
+            $newOnes = count(array_diff($hrefs, $seenHrefs));
+            $pagTest[$catKey]['start_' . $s] = ['links' => count($hrefs), 'new' => $newOnes];
+            foreach ($hrefs as $h) $seenHrefs[] = $h;
+            if ($newOnes === 0) break;
         }
     }
 
