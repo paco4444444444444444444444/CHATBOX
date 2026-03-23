@@ -335,7 +335,13 @@ function searchCatalog($query, $catalog, $strict = false) {
     // ── Paso 2: búsqueda por palabras clave (AND o OR según $strict) ──────────
     $stop = ['curso','cursos','hay','sobre','para','el','la','los','las','de','que','del','al','un','una','en','con','por',
              'información','informacion','dame','quiero','saber','ver','dime','datos','dato','cuáles','cuales',
-             'tienes','tiene','puedes','puedo','algún','algun','más','mas'];
+             'tienes','tiene','puedes','puedo','algún','algun','más','mas',
+             // Verbos/palabras cortas españolas que coinciden como subcadena en nombres en inglés
+             // 'ser' → User, Server | 'ver' → Server | 'son' | 'nos' | 'fue' | 'van' | 'sus' | 'mis' | 'tus' | 'les'
+             'ser','son','nos','fue','van','sus','mis','tus','les','use','has','sin','asi','eso','ese','esa',
+             // Palabras irrelevantes que pasarían el filtro de longitud
+             'hacer','poder','tener','querer','busco','busca','buscar','buscar','quiero','quier',
+             'tipo','algo','otra','otro','bien','aqui','aquí','hola','hola'];
     $words = array_values(array_filter(
         explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $q)),
         fn($w) => mb_strlen($w) > 2 && !in_array($w, $stop)
