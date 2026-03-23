@@ -81,7 +81,7 @@ $OLLAMA_PORT  = 11434;
 //   llama3.2:3b       → más rápido, bueno con GPU 4GB VRAM
 //   qwen2.5:14b       → muy bueno en español, requiere GPU 10GB+ VRAM
 //   mistral:7b        → alternativa rápida y equilibrada
-$OLLAMA_MODEL = 'llama3.1:8b';
+$OLLAMA_MODEL = 'qwen2.5:14b';
 
 // ── Groq — Alternativa nube gratuita (sin GPU necesaria) ──────────────────────
 // Si prefieres no depender de que Ollama esté corriendo:
