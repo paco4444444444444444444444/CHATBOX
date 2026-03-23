@@ -680,15 +680,15 @@ $AREA_KEYS = [
     'Diseño Gráfico y Marketing'    => ['diseño gráfico','diseño grafico','redes sociales','photoshop','illustrator','premiere','marketing','community manager','instagram','facebook','whatsapp'],
     'Cloud, IA y Análisis de Datos' => ['inteligencia artificial','ia generativa','chatgpt','machine learning','llm','cloud','nube','azure','aws','google cloud'],
     'Ciberseguridad y Redes'        => ['ciberseguridad','hacking','seguridad informática','seguridad informatica','redes cisco','redes ccna','ccna','ccst','forense','incidentes de seguridad'],
-    'Analítica de Datos y BI'       => ['analítica','analitica','business intelligence','power bi','excel',' bi ','análisis de datos','analisis de datos'],
+    'Analítica de Datos y BI'       => ['analítica','analitica','business intelligence','power bi','cursos de bi','curso de bi','excel','análisis de datos','analisis de datos'],
     'Desarrollo de Software'        => ['programaci','javascript','python','bases de datos','desarrollo de software'],
     'Videojuegos'                   => ['videojuego','unity','game design','concept art','realidad virtual','animaci'],
     'Gestión de Proyectos'          => ['gestión de proyectos','gestion de proyectos','pmi','scrum','agile'],
     'Sistemas y Soporte TIC'        => ['soporte tic','windows server','linux','lpic','it support'],
     'Agricultura 4.0 y Drónica'    => ['agricultura','dron','drónica','dronica','teledetección','teledeteccion','fotogrametría','fotogrametria','precision'],
 ];
-$area_match_key  = null;
-$lmsg_lower = mb_strtolower($last_user_msg);
+$area_match_key = null;
+$lmsg_lower = mb_strtolower(trim($last_user_msg));
 foreach ($AREA_KEYS as $catKey => $keywords) {
     foreach ($keywords as $kw) {
         if (mb_strpos($lmsg_lower, $kw) !== false) {
@@ -698,10 +698,12 @@ foreach ($AREA_KEYS as $catKey => $keywords) {
     }
 }
 if ($area_match_key && isset($AREAS_CATALOG[$area_match_key]) && !$is_listing) {
-    $byN2 = [];
-    foreach ($DIRECT_CATALOG as $c) $byN2[$c['n']] = $c;
-    $areaIds     = $AREAS_CATALOG[$area_match_key];
-    $areaCourses = array_values(array_filter(array_map(fn($n) => $byN2[$n] ?? null, $areaIds)));
+    $byN = [];
+    foreach ($DIRECT_CATALOG as $c) $byN[$c['n']] = $c;
+    $areaCourses = [];
+    foreach ($AREAS_CATALOG[$area_match_key] as $n) {
+        if (isset($byN[$n])) $areaCourses[] = $byN[$n];
+    }
     if (!empty($areaCourses)) {
         $catalogUrl = rtrim($PUBLIC_URL, '/') . '/index.php/cursos-feval';
         $out  = "Cursos del área **{$area_match_key}** en 2026 (todos **GRATUITOS**):\n\n";
@@ -709,7 +711,7 @@ if ($area_match_key && isset($AREAS_CATALOG[$area_match_key]) && !$is_listing) {
             $started = courseStarted($c['ini']) ? ' ⚠️ ya iniciado' : '';
             $out .= "- **{$c['nombre']}** ({$c['pub']}, {$c['ini']}–{$c['fin']}{$started})\n";
         }
-        $out .= "\nPronto un curso en concreto? Dime el nombre y te doy todos los detalles.";
+        $out .= "\n¿Te interesa algún curso en concreto? Dime el nombre y te doy todos los detalles.";
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['content' => [['type' => 'text', 'text' => $out]]]);
         exit;
