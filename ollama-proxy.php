@@ -760,7 +760,7 @@ $faq_responses = [
      'answer' => "**FEVAL Formación** es la plataforma de formación TIC de la Institución Ferial de Extremadura. Ofrecemos más de 70 cursos TIC gratuitos en 2026, financiados por la Junta de Extremadura y el SEXPE.\n\nContacto: formacion@feval.com | 924 829 100 | 618 457 790"],
 
     // Recoger diplomas / horario sede
-    ['keys' => ['recoger el diploma','recoger mi diploma','recoger el certificado','recoger mi certificado','recoger el título','recoger los diplomas','recoger los certificados','recoger los títulos','recogida de diplomas','recogida de certificados','recogida de títulos','recogida','ir a recoger','horario diploma','horario feval','horario sede','horario oficina','horario de visita','horario de atenci','horario de las oficinas','hora abren','a que hora abren','cuando abren','visitar las instalaciones','instalaciones feval','don benito','paseo de feval'],
+    ['keys' => ['recoger el diploma','recoger mi diploma','recoger el certificado','recoger mi certificado','recoger el título','recoger los diplomas','recoger los certificados','recoger los títulos','recogida de diplomas','recogida de certificados','recogida de títulos','recogida','ir a recoger','horario diploma','horario feval','horario sede','horario oficina','horario de visita','horario de atenci','horario de las oficinas','hora abren','a que hora abren','cuando abren','visitar las instalaciones','visita presencial','puedo visitar','visita feval','instalaciones feval','don benito','paseo de feval'],
      'answer' => "Puedes recoger los diplomas de **lunes a viernes de 08:00h a 15:00h** en las instalaciones del Centro Tecnológico de FEVAL, sito en el Paseo de FEVAL s/n, Don Benito (Badajoz)."],
 
     // Cuándo llega el diploma
@@ -1039,7 +1039,7 @@ function scrapeCoursesFromWeb($publicUrl) {
 $live_catalog = scrapeCoursesFromWeb($PUBLIC_URL);
 if ($live_catalog) {
     $system_prompt .= "\n\n=== CATÁLOGO EN TIEMPO REAL (REFERENCIA INTERNA — NO LISTAR) ===\n";
-    $system_prompt .= "ATENCIÓN: Estos datos son SOLO para responder consultas ESPECÍFICAS sobre un curso concreto (fechas, descripción, enlace). NUNCA hagas un listado completo de todos los cursos ni de todas las áreas aunque el usuario te lo pida. Si el usuario pide ver todos los cursos o el catálogo, responde ÚNICAMENTE: \"Puedes consultar el catálogo completo en: https://formacionfeval.com/index.php/cursos-feval\"\n\n";
+    $system_prompt .= "ATENCIÓN: Estos datos son SOLO para responder consultas ESPECÍFICAS sobre un curso concreto (fechas, descripción, enlace). NUNCA hagas un listado completo de todos los cursos ni de todas las áreas aunque el usuario te lo pida. Si el usuario pide ver todos los cursos o el catálogo, responde ÚNICAMENTE: \"Puedes consultar el catálogo completo en: https://formacionfeval.com/index.php/cursos-feval\". NUNCA menciones ni reproduzcas las URLs de preinscripción que aparecen en estos datos — en su lugar usa siempre: https://formacionfeval.com/index.php/cursos-feval\n\n";
     $system_prompt .= $live_catalog;
 }
 
