@@ -691,7 +691,7 @@ $faq_responses = [
      'answer' => "**FEVAL Formación** es la plataforma de formación TIC de la Institución Ferial de Extremadura. Ofrecemos más de 70 cursos TIC gratuitos en 2026, financiados por la Junta de Extremadura y el SEXPE.\n\nContacto: formacion@feval.com | 924 829 100 | 618 457 790"],
 
     // Recoger diplomas / horario sede
-    ['keys' => ['recoger el diploma','recoger mi diploma','recoger el certificado','recoger mi certificado','recoger el título','horario diploma','horario feval','horario sede','horario oficina','hora abren','qué hora','a que hora','cuando abren','instalaciones','don benito','paseo de feval'],
+    ['keys' => ['recoger el diploma','recoger mi diploma','recoger el certificado','recoger mi certificado','recoger el título','horario diploma','horario feval','horario sede','horario oficina','hora abren','a que hora abren','cuando abren','instalaciones','don benito','paseo de feval'],
      'answer' => "Puedes recoger los diplomas de **lunes a viernes de 08:00h a 15:00h** en las instalaciones del Centro Tecnológico de FEVAL, sito en el Paseo de FEVAL s/n, Don Benito (Badajoz)."],
 
     // Cuándo llega el diploma
@@ -707,11 +707,11 @@ $faq_responses = [
      'answer' => "Cada curso incluye un **diploma de aprovechamiento** expedido por el SEXPE al superar el curso. En los cursos con certificación oficial el examen está incluido sin coste adicional. La firma oficial del diploma SEXPE puede tardar varios meses; mientras tanto FEVAL puede emitir un certificado provisional.\n\nPara recoger diplomas: lunes a viernes 08:00-15:00h en Paseo de FEVAL s/n, Don Benito (Badajoz)."],
 
     // Baremación / selección
-    ['keys' => ['baremaci','selección','seleccion','criterios','puntuaci','75','plazas libres','cómo se selecciona','como se selecciona'],
+    ['keys' => ['baremaci','selección','seleccion','criterios','puntuaci','75 preinscripciones','más de 75','plazas libres','cómo se selecciona','como se selecciona'],
      'answer' => "Cuando un curso supera las **75 preinscripciones** se cierra automáticamente y se aplica baremación:\n- **Desempleados**: criterios oficiales del SEXPE (consultables en la web).\n- **Empleados**: criterios propios de FEVAL (consultables en la web).\n\nSe publica una resolución con los DNI y puntuaciones ordenadas, ofreciendo plaza hasta completar **16 alumnos**. En cursos con menos de 75 preinscripciones se llama por orden de inscripción, por lo que conviene inscribirse cuanto antes."],
 
     // Requisitos para acceder
-    ['keys' => ['requisito','requisitos','acceder','puedo acceder','quién puede','quien puede'],
+    ['keys' => ['requisito','requisitos','para acceder al curso','cómo acceder al curso','como acceder al curso','quién puede','quien puede'],
      'answer' => "Los requisitos son mínimos:\n- **Empleados**: que tu puesto de trabajo esté en Extremadura.\n- **Desempleados**: ser demandante de empleo en cualquier Centro de Empleo de Extremadura.\n\nPara cursos avanzados se recomienda haber realizado previamente los cursos de nivel básico del mismo itinerario."],
 
     // Extremadura / fuera de la comunidad
@@ -723,7 +723,7 @@ $faq_responses = [
      'answer' => "Sí puedes. Los cursos son **preferentemente** para empleados o desempleados, pero si quedan plazas libres:\n- Hasta un **30% de plazas** de un curso de empleados/ocupados puede asignarse a desempleados.\n- Y viceversa (desempleados → empleados).\n\nSiempre sujeto a disponibilidad de plazas."],
 
     // Faltas / asistencia
-    ['keys' => ['faltar','falta','faltas','asistencia','ausencia','puedo faltar'],
+    ['keys' => ['faltar','faltas','cuántas faltas','cuantas faltas','asistencia','ausencia','puedo faltar','máximo de faltas','maximo de faltas'],
      'answer' => "Se puede faltar como máximo el **25% de las clases** (p.ej. en un curso de 12 clases, máximo 3 faltas). Al menos **una falta** debe justificarse con justificante oficial (urgencia médica, deber público, etc.).\n\nCada clase dura 180 minutos; para que compute como asistencia hay que estar al menos **150 minutos**. Si se está menos tiempo, cuenta como falta."],
 
     // Abandono / baja
@@ -731,15 +731,15 @@ $faq_responses = [
      'answer' => "Abandonar un curso **no te repercute en nada** ni genera sanciones para futuras formaciones con FEVAL o SEXPE. Simplemente no obtendrás el diploma de aprovechamiento de ese curso.\n\nSi no vas a poder realizarlo, comunícalo cuanto antes a formacion@feval.com o 924 829 100 para que tu plaza pueda asignarse a otro alumno."],
 
     // Prestaciones / subsidio / demanda de empleo
-    ['keys' => ['prestaci','subsidio','demanda de empleo','paro','me quitan','me suspenden','me afecta'],
+    ['keys' => ['prestaci','subsidio','demanda de empleo','estoy en paro','cobro el paro','me quitan','me suspenden','me afecta el curso','afecta al paro','afecta a la prestaci'],
      'answer' => "Realizar un curso **no suspende tu demanda de empleo** y se mantiene la intermediación (salvo que tú renuncies a ella). Sin embargo, si tienes dudas sobre prestaciones o subsidios concretos, contacta con tu **Centro de Empleo más cercano**, ya que FEVAL no tiene acceso a tus datos en el SEXPE."],
 
     // Online / clases en directo / grabaciones
-    ['keys' => ['online','directo','grabaci','grabad','ritmo','asistir','clases online','cómo son las clases','como son las clases'],
+    ['keys' => ['online','directo','grabaci','grabad','ritmo','obligatorio asistir','hay que conectarse','clases online','cómo son las clases','como son las clases','es presencial','clases presenciales','se graba','no se graba'],
      'answer' => "Todos los cursos son **online con clases en directo** en horario fijo (no se graban). Debes conectarte en el horario indicado. La excepción son algunos cursos de drones, que tienen una pequeña parte presencial.\n\nNo es formación a tu propio ritmo: hay que asistir a las clases en el horario programado."],
 
     // Requisitos técnicos
-    ['keys' => ['requisitos técnicos','requisitos tecnicos','ordenador','equipo','internet','qué necesito','que necesito'],
+    ['keys' => ['requisitos técnicos','requisitos tecnicos','necesito ordenador','necesito un ordenador','sin ordenador','qué necesito','que necesito','necesito internet'],
      'answer' => "Solo necesitas **ordenador con conexión a internet** y nociones básicas de informática. Para cursos avanzados se recomienda haber realizado primero los cursos de nivel básico del mismo itinerario."],
 
     // Formulario / datos preinscripción
