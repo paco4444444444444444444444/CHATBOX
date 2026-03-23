@@ -44,7 +44,7 @@
   var CLAUDE_URL  = 'https://api.anthropic.com/v1/messages';
   var CLAUDE_MODEL = 'claude-sonnet-4-20250514';
   var MAX_HISTORY = 10; // pares de mensajes a mantener en contexto
-  var REQUEST_TIMEOUT_MS = 45000; // 45s (Ollama local puede tardar más)
+  var REQUEST_TIMEOUT_MS = 120000; // 120s (qwen2.5:14b puede tardar al cargar)
 
   var SYSTEM_PROMPT = [
     'Eres el asistente virtual oficial de FEVAL Formación, la plataforma de formación TIC gratuita de la Institución Ferial de Extremadura. Tu nombre es "Asistente FEVAL".',

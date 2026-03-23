@@ -102,6 +102,8 @@ $ALLOWED_ORIGINS = []; // Uso local → sin restricción de origen
 
 // ─── FIN CONFIGURACIÓN ────────────────────────────────────────────────────────
 
+set_time_limit(120); // Dar tiempo suficiente a modelos grandes como qwen2.5:14b
+
 // Headers de seguridad
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
@@ -1175,7 +1177,7 @@ if ($BACKEND === 'ollama') {
         'think' => false
     ];
 
-    $result = curlPost($ollama_url, ['Content-Type: application/json'], $ollama_payload, 60);
+    $result = curlPost($ollama_url, ['Content-Type: application/json'], $ollama_payload, 110);
 
     if ($result['error']) {
         http_response_code(502);
