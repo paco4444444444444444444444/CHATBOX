@@ -697,7 +697,18 @@ foreach ($AREA_KEYS as $catKey => $keywords) {
         }
     }
 }
-if ($area_match_key && isset($AREAS_CATALOG[$area_match_key]) && !$is_listing) {
+// No buscar por área si el mensaje coincide exactamente con el nombre de un curso
+// Comprueba ambas direcciones: mensaje contiene nombre de curso O nombre contiene el mensaje (≥10 chars)
+$exact_course_hit = false;
+foreach ($DIRECT_CATALOG as $_c) {
+    $_nl = mb_strtolower($_c['nombre']);
+    if (mb_strpos($lmsg_lower, $_nl) !== false ||
+        (mb_strlen($lmsg_lower) >= 10 && mb_strpos($_nl, $lmsg_lower) !== false)) {
+        $exact_course_hit = true;
+        break;
+    }
+}
+if ($area_match_key && isset($AREAS_CATALOG[$area_match_key]) && !$is_listing && !$exact_course_hit) {
     $byN = [];
     foreach ($DIRECT_CATALOG as $c) $byN[$c['n']] = $c;
     $areaCourses = [];
@@ -741,7 +752,7 @@ $faq_responses = [
      'answer' => "Puedes recoger los diplomas de **lunes a viernes de 08:00h a 15:00h** en las instalaciones del Centro Tecnológico de FEVAL, sito en el Paseo de FEVAL s/n, Don Benito (Badajoz)."],
 
     // Cuándo llega el diploma
-    ['keys' => ['cuándo llega','cuando llega','cuándo me llega','cuando me llega','tardará','tardara','tiempo diploma','plazo diploma'],
+    ['keys' => ['cuándo llega','cuando llega','cuándo me llega','cuando me llega','me llegará','llegará el diploma','llegará el título','recibiré el diploma','recibire el diploma','cuándo tendré','cuando tendré','tardará','tardara','tiempo diploma','plazo del diploma'],
      'answer' => "El diploma de aprovechamiento debe ser firmado por el SEXPE, un trámite que suele tardar **varios meses**. Sin embargo, desde FEVAL podemos emitirte un **certificado de aprovechamiento** firmado que acredita que has realizado la formación mientras llega el diploma oficial. Contacta en formacion@feval.com o 924 829 100."],
 
     // Tipos de diploma / certificado de profesionalidad
@@ -825,7 +836,7 @@ $faq_responses = [
      'answer' => "Puedes contactar con FEVAL Formación por:\n- **Email**: formacion@feval.com\n- **Teléfono**: 924 829 100 | 618 457 790\n- **Horario**: lunes a viernes de 08:00h a 15:00h"],
 
     // Preinscripción (genérico)
-    ['keys' => ['preinscripci','inscripci','apuntar','apuntarme','solicitar','registro'],
+    ['keys' => ['preinscripci','preinscribirme','preinscribirte','preinscribirse','preinscribir','inscripci','inscribirme','inscribirte','inscribirse','apuntar','apuntarme','solicitar','registro'],
      'answer' => "Para preinscribirte entra en el curso que te interese desde el catálogo:\n" . rtrim($PUBLIC_URL, '/') . "/index.php/cursos-feval\n\nEl formulario completo solo se rellena la primera vez. Solo contactaremos con los seleccionados."],
 ];
 foreach ($faq_responses as $faq) {
