@@ -931,6 +931,10 @@ function isFevalRelated($msg) {
         'gratis','gratuito','precio','coste','horario','fecha','duraci',
         'online','presencial','semipresencial','requisito','aprender',
         'titulaci','certificacion','certificación','diploma',
+        // Navegación / preguntas de catálogo
+        'area','areas','área','áreas','modalidad','modalidades',
+        'disponible','disponibles','listado','catálogo','catalogo',
+        'opciones','opcion','opción','tipos','tipo','que hay','cuales','cuáles',
     ];
 
     // Temas/oficios que FEVAL NO cubre — si aparecen, bloquear aunque "curso" esté presente
@@ -974,7 +978,10 @@ function isFevalRelated($msg) {
 
 $OFF_TOPIC_MSG = "Solo puedo ayudarte con información sobre los cursos y servicios de FEVAL Formación. ¿Hay algún curso o área de formación en la que pueda ayudarte?";
 
-if (!isFevalRelated($last_user_msg)) {
+// Si ya hay conversación en curso (≥3 mensajes) el contexto es claramente FEVAL → no bloquear
+$conversation_active = count($clean_messages) >= 3;
+
+if (!$conversation_active && !isFevalRelated($last_user_msg)) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['content' => [['type' => 'text', 'text' => $OFF_TOPIC_MSG]]]);
     exit;
