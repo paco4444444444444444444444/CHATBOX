@@ -669,7 +669,7 @@ $faq_q = str_replace(['ocupado','ocupados','trabajador','trabajadores'], ['emple
 $faq_q = str_replace(['en paro','parado','parada'], ['desempleado','desempleado','desempleado'], $faq_q);
 $faq_responses = [
     // Gratuidad
-    ['keys' => ['gratis','gratuito','gratuita','precio','coste','cuesta','pagar','pago','financiaci'],
+    ['keys' => ['gratis','gratuito','gratuita','precio','coste','cuesta','cobrar','pagar','pago','financiaci'],
      'answer' => "Sí, todos los cursos son completamente **GRATUITOS**, incluyendo el examen oficial de certificación cuando el curso lo incluya. No hay ningún coste para el alumno. Están financiados por la Junta de Extremadura (Consejería de Economía, Empleo y Transformación Digital) y el **SEXPE**."],
 
     // SEXPE
@@ -757,7 +757,7 @@ $faq_responses = [
      'answer' => "Si ya has realizado un curso del itinerario y quieres continuar con el siguiente, tienes **preferencia en la asignación de plaza** respecto a nuevos alumnos, ya que el objetivo es que completes el itinerario completo."],
 
     // Sugerencia / contacto
-    ['keys' => ['sugerencia','duda','contacto','contactar','email','correo','teléfono','telefono','comunicar'],
+    ['keys' => ['sugerencia','contacto','contactar','email','correo feval','correo formacion','teléfono','telefono','comunicar','cómo os contacto','como os contacto','cómo contacto','como contacto'],
      'answer' => "Puedes contactar con FEVAL Formación por:\n- **Email**: formacion@feval.com\n- **Teléfono**: 924 829 100 | 618 457 790\n- **Horario**: lunes a viernes de 08:00h a 15:00h"],
 
     // Preinscripción (genérico)
