@@ -1169,7 +1169,7 @@ if ($BACKEND === 'ollama') {
     $ollama_payload = [
         'model'    => $OLLAMA_MODEL,
         'stream'   => false,
-        'options'  => ['num_predict' => $max_tokens, 'temperature' => 0.1],
+        'options'  => ['num_predict' => $max_tokens, 'temperature' => 0.1, 'num_ctx' => 8192],
         'messages' => array_merge(
             $system_prompt ? [['role' => 'system', 'content' => $system_prompt]] : [],
             $clean_messages
