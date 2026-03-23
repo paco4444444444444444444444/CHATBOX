@@ -662,7 +662,8 @@ if ($is_listing) {
         foreach ($ns as $n) {
             if (!isset($byN[$n])) continue;
             $c    = $byN[$n];
-            $out .= "- {$c['nombre']} ({$c['pub']}, {$c['ini']})\n";
+            $started = courseStarted($c['ini']) ? ' ⚠️ ya iniciado' : '';
+            $out .= "- {$c['nombre']} ({$c['pub']}, {$c['ini']}{$started})\n";
         }
         $out .= "\n";
     }
@@ -670,6 +671,48 @@ if ($is_listing) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['content' => [['type' => 'text', 'text' => $out]]]);
     exit;
+}
+
+// ── Búsqueda por área cuando el usuario nombra el área (antes de FAQ) ─────────
+// Mapa: keywords de usuario → clave exacta en $AREAS_CATALOG
+$AREA_KEYS = [
+    'Cloud, IA y Análisis de Datos' => ['inteligencia artificial','ia generativa','chatgpt','machine learning','llm','cloud','nube','azure','aws','google cloud'],
+    'Ciberseguridad y Redes'        => ['ciberseguridad','hacking','seguridad informática','seguridad informatica','redes','ccna','ccst','forense','incidentes de seguridad'],
+    'Analítica de Datos y BI'       => ['analítica','analitica','business intelligence','power bi','análisis de datos','analisis de datos'],
+    'Desarrollo de Software'        => ['programaci','javascript','python','bases de datos','desarrollo de software'],
+    'Videojuegos'                   => ['videojuego','unity','game design','concept art','realidad virtual','animaci'],
+    'Gestión de Proyectos'          => ['gestión de proyectos','gestion de proyectos','pmi','scrum','agile'],
+    'Sistemas y Soporte TIC'        => ['soporte tic','windows server','linux','lpic','it support'],
+    'Diseño Gráfico y Marketing'    => ['diseño gráfico','diseño grafico','photoshop','illustrator','premiere','marketing','community manager','redes sociales','instagram','facebook','whatsapp'],
+    'Agricultura 4.0 y Drónica'    => ['agricultura','dron','drónica','dronica','teledetección','teledeteccion','fotogrametría','fotogrametria','precision'],
+];
+$area_match_key  = null;
+$lmsg_lower = mb_strtolower($last_user_msg);
+foreach ($AREA_KEYS as $catKey => $keywords) {
+    foreach ($keywords as $kw) {
+        if (mb_strpos($lmsg_lower, $kw) !== false) {
+            $area_match_key = $catKey;
+            break 2;
+        }
+    }
+}
+if ($area_match_key && isset($AREAS_CATALOG[$area_match_key]) && !$is_listing) {
+    $byN2 = [];
+    foreach ($DIRECT_CATALOG as $c) $byN2[$c['n']] = $c;
+    $areaIds     = $AREAS_CATALOG[$area_match_key];
+    $areaCourses = array_values(array_filter(array_map(fn($n) => $byN2[$n] ?? null, $areaIds)));
+    if (!empty($areaCourses)) {
+        $catalogUrl = rtrim($PUBLIC_URL, '/') . '/index.php/cursos-feval';
+        $out  = "Cursos del área **{$area_match_key}** en 2026 (todos **GRATUITOS**):\n\n";
+        foreach ($areaCourses as $c) {
+            $started = courseStarted($c['ini']) ? ' ⚠️ ya iniciado' : '';
+            $out .= "- **{$c['nombre']}** ({$c['pub']}, {$c['ini']}–{$c['fin']}{$started})\n";
+        }
+        $out .= "\nPronto un curso en concreto? Dime el nombre y te doy todos los detalles.";
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['content' => [['type' => 'text', 'text' => $out]]]);
+        exit;
+    }
 }
 
 // ── FAQ directas: respuestas fijas para preguntas frecuentes ─────────────────
@@ -755,7 +798,7 @@ $faq_responses = [
      'answer' => "Si te han confirmado la matrícula pero **no has recibido el enlace de acceso** al aula virtual, contacta urgentemente:\n- **Email**: formacion@feval.com\n- **Teléfono**: 924 829 100 | 618 457 790\n\nNo esperes al día del inicio del curso."],
 
     // Cuenta bloqueada / registro
-    ['keys' => ['cuenta bloqueada','bloqueada','bloquead','confirmar.*correo','confirmar.*email','no recibo.*correo','no me llega','spam'],
+    ['keys' => ['cuenta bloqueada','bloqueada','bloquead','confirmar.*correo','confirmar.*email','no recibo.*correo','no me llega el correo','no me llega el email','no me llega la confirmaci','spam'],
      'answer' => "Al crear tu cuenta recibirás un **correo de confirmación** (revisa también la carpeta de Spam). Debes confirmar el registro haciendo clic en el enlace del correo — hasta entonces la cuenta aparecerá como bloqueada.\n\nSi no recibes el correo, contacta: formacion@feval.com | 924 829 100 | 618 457 790"],
 
     // Error al crear cuenta / usuario en uso
