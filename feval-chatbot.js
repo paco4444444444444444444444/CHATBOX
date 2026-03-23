@@ -58,6 +58,7 @@
     '- Dirigido a: empleados y desempleados de Extremadura',
     '- Requisito para empleados: que su puesto de trabajo esté en Extremadura',
     '- Requisito para desempleados: ser demandante de empleo en cualquier centro de empleo de Extremadura',
+    '- También hay cursos específicos para DOCENTES (profesores): Teledetección satelital y terrestre, SIG Básico y Fotogrametría con drones. Área: Agricultura 4.0 y Drónica.',
     '- Personas de fuera de Extremadura: SOLO pueden participar si teletrabajan para una empresa con domicilio social en Extremadura',
     '- Requisitos técnicos: ordenador con conexión a internet y nociones básicas de informática',
     '',

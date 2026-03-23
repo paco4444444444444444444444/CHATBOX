@@ -579,6 +579,11 @@ function fetchCourseDetails($courseName) {
     return $result;
 }
 
+function courseStarted($ini) {
+    $d = strtotime(str_replace('/', '-', $ini));
+    return $d !== false && $d <= time();
+}
+
 function formatCourseList($courses) {
     global $PUBLIC_URL;
     $catalogUrl = rtrim($PUBLIC_URL, '/') . '/index.php/cursos-feval';
@@ -586,10 +591,14 @@ function formatCourseList($courses) {
         $c       = $courses[0];
         $details = fetchCourseDetails($c['nombre']);
         $out = "**{$c['nombre']}**\n- Horas: {$c['h']}h\n- Dirigido a: {$c['pub']}\n- Modalidad: {$c['mod']}\n- Fechas: {$c['ini']} – {$c['fin']}\n- Días: {$c['dias']}, {$c['hor']}";
-        if ($details && !empty($details['url'])) {
-            $out .= "\n- Preinscripción: {$details['url']}";
+        if (courseStarted($c['ini'])) {
+            $out .= "\n\n⚠️ Este curso ya ha comenzado. Consulta el catálogo por si hubiera nuevas ediciones: {$catalogUrl}";
         } else {
-            $out .= "\n- Preinscripción: {$catalogUrl}";
+            if ($details && !empty($details['url'])) {
+                $out .= "\n- Preinscripción: {$details['url']}";
+            } else {
+                $out .= "\n- Preinscripción: {$catalogUrl}";
+            }
         }
         if ($details && !empty($details['text'])) {
             $out .= "\n\n" . $details['text'];
@@ -598,7 +607,8 @@ function formatCourseList($courses) {
     }
     $lines = [];
     foreach ($courses as $c) {
-        $lines[] = "**{$c['nombre']}** ({$c['h']}h, {$c['pub']}, {$c['mod']}, {$c['ini']}–{$c['fin']}, {$c['dias']} {$c['hor']})";
+        $started = courseStarted($c['ini']) ? ' ⚠️ ya iniciado' : '';
+        $lines[] = "**{$c['nombre']}** ({$c['h']}h, {$c['pub']}, {$c['mod']}, {$c['ini']}–{$c['fin']}, {$c['dias']} {$c['hor']}{$started})";
     }
     return implode("\n", $lines) . "\n\nPreinscripción: {$catalogUrl}";
 }
@@ -717,7 +727,7 @@ $faq_responses = [
      'answer' => "Se puede faltar como máximo el **25% de las clases** (p.ej. en un curso de 12 clases, máximo 3 faltas). Al menos **una falta** debe justificarse con justificante oficial (urgencia médica, deber público, etc.).\n\nCada clase dura 180 minutos; para que compute como asistencia hay que estar al menos **150 minutos**. Si se está menos tiempo, cuenta como falta."],
 
     // Abandono / baja
-    ['keys' => ['abandonar','abandono','darme de baja','baja','me repercute','penalizaci','sancion','sanciones'],
+    ['keys' => ['abandonar','abandono','darme de baja del curso','baja del curso','darme de baja de la formaci','me repercute','penalizaci','sancion','sanciones'],
      'answer' => "Abandonar un curso **no te repercute en nada** ni genera sanciones para futuras formaciones con FEVAL o SEXPE. Simplemente no obtendrás el diploma de aprovechamiento de ese curso.\n\nSi no vas a poder realizarlo, comunícalo cuanto antes a formacion@feval.com o 924 829 100 para que tu plaza pueda asignarse a otro alumno."],
 
     // Prestaciones / subsidio / demanda de empleo
