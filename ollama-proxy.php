@@ -62,7 +62,7 @@ $BACKEND = 'ollama'; // ← 'ollama' para tu PC, 'groq' para la nube gratis
 
 // URL pública del sitio (la que ven los usuarios en los enlaces)
 // Cámbiala si tu dominio/túnel cambia
-$PUBLIC_URL = 'https://blog-tired-vitamins-flu.trycloudflare.com';
+$PUBLIC_URL = 'https://fly-distributions-reserves-dinner.trycloudflare.com';
 
 // URL interna para que el script acceda a Joomla SIN pasar por el túnel.
 // Normalmente 'http://127.0.0.1' funciona si Apache escucha en el puerto 80.
