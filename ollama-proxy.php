@@ -337,11 +337,13 @@ function searchCatalog($query, $catalog, $strict = false) {
              'información','informacion','dame','quiero','saber','ver','dime','datos','dato','cuáles','cuales',
              'tienes','tiene','puedes','puedo','algún','algun','más','mas',
              // Verbos/palabras cortas españolas que coinciden como subcadena en nombres en inglés
-             // 'ser' → User, Server | 'ver' → Server | 'son' | 'nos' | 'fue' | 'van' | 'sus' | 'mis' | 'tus' | 'les'
+             // 'ser' → User, Server | 'ver' → Server | 'des' → Desarrollador, Designer, Despliegue, redes
              'ser','son','nos','fue','van','sus','mis','tus','les','use','has','sin','asi','eso','ese','esa',
+             // 'des' → subcadena en "redes", "Desarrollador", "Designer", "Despliegue"
+             'des',
              // Palabras irrelevantes que pasarían el filtro de longitud
-             'hacer','poder','tener','querer','busco','busca','buscar','buscar','quiero','quier',
-             'tipo','algo','otra','otro','bien','aqui','aquí','hola','hola'];
+             'hacer','poder','tener','querer','busco','busca','buscar','quiero','quier',
+             'tipo','algo','otra','otro','bien','aqui','aquí','hola'];
     $words = array_values(array_filter(
         explode(' ', preg_replace('/[^a-z0-9áéíóúüñ ]/u', ' ', $q)),
         fn($w) => mb_strlen($w) > 2 && !in_array($w, $stop)
@@ -754,7 +756,7 @@ $faq_q = str_replace(['ocupado','ocupados','trabajador','trabajadores'], ['emple
 $faq_q = str_replace(['en paro','parado','parada'], ['desempleado','desempleado','desempleado'], $faq_q);
 $faq_responses = [
     // Gratuidad
-    ['keys' => ['gratis','gratuito','gratuita','precio','coste','cuesta','cobrar','pagar','pago','financiaci'],
+    ['keys' => ['gratis','gratuito','gratuita','precio','coste','cuesta','pagar','pago','financiaci','cuánto cuesta','cuanto cuesta','tiene coste','tiene algún coste','cobran algo','cobras algo'],
      'answer' => "Sí, todos los cursos son completamente **GRATUITOS**, incluyendo el examen oficial de certificación cuando el curso lo incluya. No hay ningún coste para el alumno. Están financiados por la Junta de Extremadura (Consejería de Economía, Empleo y Transformación Digital) y el **SEXPE**."],
 
     // SEXPE
@@ -888,6 +890,57 @@ $direct_matches = searchCatalog($last_user_msg, $DIRECT_CATALOG);
 if ($direct_matches !== null) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['content' => [['type' => 'text', 'text' => formatCourseList($direct_matches)]]]);
+    exit;
+}
+
+// ── Guardarrail de tema: bloquear en PHP antes de llamar al LLM ──────────────
+// Si la consulta no contiene ninguna palabra relacionada con FEVAL y tiene más
+// de 2 palabras significativas, devolver respuesta off-topic sin llamar al LLM.
+function isFevalRelated($msg) {
+    $q = mb_strtolower($msg);
+
+    // Mensajes muy cortos (≤2 palabras) pueden ser respuestas de seguimiento ("sí", "ok", "cuándo")
+    $words = array_filter(
+        explode(' ', preg_replace('/[^a-záéíóúüñ0-9 ]/u', ' ', $q)),
+        fn($w) => mb_strlen($w) > 2
+    );
+    if (count($words) <= 2) return true;
+
+    // Palabras clave relacionadas con FEVAL (si aparece alguna → es on-topic)
+    $feval_keywords = [
+        // Proceso/gestión
+        'preinscri','inscri','baremo','diploma','certificad','certifi',
+        'plaza','selecci','asistenci','falta','faltar','aula','acceso',
+        'enlace','contraseña','contrasena','cuenta','registr','matricul',
+        'bloqueada','bloqueo','confirmaci','spam',
+        // FEVAL/institución
+        'feval','sexpe','extremadura','formaci','curso','clase',
+        // Tecnología que imparte FEVAL
+        'python','java','javascript','hacking','hack','cibersegur','azure',
+        'aws','cisco','ccna','ccst','linux','scrum','pmi','cloud',
+        'inteligencia','artificial','drone','dron','agricultura','power',
+        'photoshop','illustrator','premiere','unity','videojuego','game',
+        'marketing','programaci','programar','desarrollo','desarrollar',
+        'analisis','análisis','seguridad','redes','sql','html','css',
+        'diseño','disenyo','excel','office','illustr','machine','learning',
+        // Elegibilidad/logística
+        'empleado','desempleado','paro','empleo','trabajador','docente',
+        'gratis','gratuito','precio','coste','horario','fecha','duraci',
+        'online','presencial','semipresencial','requisito','aprender',
+        'titulaci','certificacion','certificación','diploma',
+    ];
+
+    foreach ($feval_keywords as $kw) {
+        if (mb_strpos($q, $kw) !== false) return true;
+    }
+    return false;
+}
+
+$OFF_TOPIC_MSG = "Solo puedo ayudarte con información sobre los cursos y servicios de FEVAL Formación. ¿Hay algún curso o área de formación en la que pueda ayudarte?";
+
+if (!isFevalRelated($last_user_msg)) {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['content' => [['type' => 'text', 'text' => $OFF_TOPIC_MSG]]]);
     exit;
 }
 
