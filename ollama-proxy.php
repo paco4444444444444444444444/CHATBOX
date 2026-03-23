@@ -89,7 +89,7 @@ $OLLAMA_MODEL = 'qwen2.5:7b';
 // ── Groq — Principal nube gratuita (sin GPU necesaria) ────────────────────────
 // Registro gratis en: https://console.groq.com → API Keys → Create API Key
 // Pega aquí tu API key (empieza por gsk_...)
-$GROQ_API_KEY = 'gsk_TU_API_KEY_DE_GROQ_AQUI';
+$GROQ_API_KEY = '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';
 $GROQ_MODEL   = 'llama-3.3-70b-versatile'; // Gratis, muy potente, < 1s respuesta
 
 // ── Claude / Anthropic (de pago, solo si lo necesitas) ────────────────────────
