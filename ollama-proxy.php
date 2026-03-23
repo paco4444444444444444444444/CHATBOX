@@ -681,7 +681,7 @@ $faq_responses = [
      'answer' => "**FEVAL Formación** es la plataforma de formación TIC de la Institución Ferial de Extremadura. Ofrecemos más de 70 cursos TIC gratuitos en 2026, financiados por la Junta de Extremadura y el SEXPE.\n\nContacto: formacion@feval.com | 924 829 100 | 618 457 790"],
 
     // Recoger diplomas / horario sede
-    ['keys' => ['recoger','horario diploma','horario feval','horario sede','horario oficina','hora abren','qué hora','a que hora','cuando abren','instalaciones','don benito','paseo de feval'],
+    ['keys' => ['recoger el diploma','recoger mi diploma','recoger el certificado','recoger mi certificado','recoger el título','horario diploma','horario feval','horario sede','horario oficina','hora abren','qué hora','a que hora','cuando abren','instalaciones','don benito','paseo de feval'],
      'answer' => "Puedes recoger los diplomas de **lunes a viernes de 08:00h a 15:00h** en las instalaciones del Centro Tecnológico de FEVAL, sito en el Paseo de FEVAL s/n, Don Benito (Badajoz)."],
 
     // Cuándo llega el diploma
@@ -735,6 +735,14 @@ $faq_responses = [
     // Formulario / datos preinscripción
     ['keys' => ['formulario','datos personales','largo formulario','rellenar datos','rellenar formulario'],
      'answer' => "El formulario completo solo se rellena **la primera vez** que te preinscribes. En siguientes preinscripciones el sistema recuerda tus datos, y puedes modificarlos si es necesario."],
+
+    // Contraseña olvidada / recuperar acceso
+    ['keys' => ['contraseña','contrasena','password','passwd','olvide la','olvidé la','olvidado la','recuperar acceso','no recuerdo'],
+     'answer' => "Si has olvidado tu contraseña, ve a la página de inicio de sesión y haz clic en **\"¿Olvidaste tu contraseña?\"**. Te enviarán un enlace de recuperación al email con el que te registraste (revisa también el Spam).\n\nSi sigues sin acceder, contacta: formacion@feval.com | 924 829 100 | 618 457 790"],
+
+    // Enlace aula virtual / no llega acceso al curso
+    ['keys' => ['aula virtual','enlace del curso','link del curso','acceso al curso','acceso al aula','enlace de acceso','no tengo acceso al curso','no me llega el enlace'],
+     'answer' => "Si te han confirmado la matrícula pero **no has recibido el enlace de acceso** al aula virtual, contacta urgentemente:\n- **Email**: formacion@feval.com\n- **Teléfono**: 924 829 100 | 618 457 790\n\nNo esperes al día del inicio del curso."],
 
     // Cuenta bloqueada / registro
     ['keys' => ['cuenta bloqueada','bloqueada','bloquead','confirmar.*correo','confirmar.*email','no recibo.*correo','no me llega','spam'],
