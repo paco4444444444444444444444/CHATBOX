@@ -58,7 +58,10 @@
 // ─── CONFIGURACIÓN — EDITA SOLO ESTA SECCIÓN ─────────────────────────────────
 
 // Backend a usar
-$BACKEND = 'ollama'; // ← 'ollama' para tu PC, 'groq' para la nube gratis
+// 'groq_ollama' → Groq como principal + Ollama local como respaldo automático (RECOMENDADO)
+// 'groq'        → Solo Groq nube
+// 'ollama'      → Solo Ollama local
+$BACKEND = 'groq_ollama';
 
 // URL pública del sitio (la que ven los usuarios en los enlaces)
 // Cámbiala si tu dominio/túnel cambia
@@ -83,11 +86,9 @@ $OLLAMA_PORT  = 11434;
 //   mistral:7b        → alternativa rápida y equilibrada
 $OLLAMA_MODEL = 'qwen2.5:7b';
 
-// ── Groq — Alternativa nube gratuita (sin GPU necesaria) ──────────────────────
-// Si prefieres no depender de que Ollama esté corriendo:
-// 1. Regístrate gratis en: https://console.groq.com
-// 2. Crea una API Key y pégala aquí
-// 3. Cambia $BACKEND = 'groq' arriba
+// ── Groq — Principal nube gratuita (sin GPU necesaria) ────────────────────────
+// Registro gratis en: https://console.groq.com → API Keys → Create API Key
+// Pega aquí tu API key (empieza por gsk_...)
 $GROQ_API_KEY = 'gsk_TU_API_KEY_DE_GROQ_AQUI';
 $GROQ_MODEL   = 'llama-3.3-70b-versatile'; // Gratis, muy potente, < 1s respuesta
 
@@ -1159,14 +1160,10 @@ function curlPost($url, $headers, $payload, $timeout = 30) {
 
 $reply_text = '';
 
-// ══════════════════════════════════════════════════════
-// BACKEND: OLLAMA (gratis, local, ilimitado)
-// ══════════════════════════════════════════════════════
-if ($BACKEND === 'ollama') {
-
-    // Construir prompt para Ollama (formato OpenAI-compatible)
-    $ollama_url     = "http://{$OLLAMA_HOST}:{$OLLAMA_PORT}/api/chat";
-    $ollama_payload = [
+// ── Helper: llamar a Ollama y devolver texto o null en caso de error ──────────
+function callOllama($system_prompt, $clean_messages, $max_tokens) {
+    global $OLLAMA_HOST, $OLLAMA_PORT, $OLLAMA_MODEL;
+    $payload = [
         'model'    => $OLLAMA_MODEL,
         'stream'   => false,
         'options'  => ['num_predict' => $max_tokens, 'temperature' => 0.1, 'num_ctx' => 8192],
@@ -1176,30 +1173,34 @@ if ($BACKEND === 'ollama') {
         ),
         'think' => false
     ];
-
-    $result = curlPost($ollama_url, ['Content-Type: application/json'], $ollama_payload, 110);
-
-    if ($result['error']) {
-        http_response_code(502);
-        echo json_encode([
-            'error' => 'No se pudo conectar con Ollama. ¿Está Ollama ejecutándose? Error: ' . $result['error']
-        ]);
-        exit;
-    }
-
+    $result = curlPost(
+        "http://{$OLLAMA_HOST}:{$OLLAMA_PORT}/api/chat",
+        ['Content-Type: application/json'],
+        $payload,
+        110
+    );
+    if ($result['error']) return null;
     $data = json_decode($result['body'], true);
-    if ($result['code'] !== 200 || !isset($data['message']['content'])) {
+    if ($result['code'] !== 200 || !isset($data['message']['content'])) return null;
+    return $data['message']['content'];
+}
+
+// ══════════════════════════════════════════════════════
+// BACKEND: OLLAMA (gratis, local, ilimitado)
+// ══════════════════════════════════════════════════════
+if ($BACKEND === 'ollama') {
+
+    $reply_text = callOllama($system_prompt, $clean_messages, $max_tokens);
+    if ($reply_text === null) {
         http_response_code(502);
-        echo json_encode(['error' => 'Respuesta inesperada de Ollama', 'detail' => $result['body']]);
+        echo json_encode(['error' => 'No se pudo conectar con Ollama. ¿Está Ollama ejecutándose?']);
         exit;
     }
-
-    $reply_text = $data['message']['content'];
 
 // ══════════════════════════════════════════════════════
 // BACKEND: GROQ (nube gratuita, muy rápido)
 // ══════════════════════════════════════════════════════
-} elseif ($BACKEND === 'groq') {
+} elseif ($BACKEND === 'groq' || $BACKEND === 'groq_ollama') {
 
     $groq_payload = [
         'model'       => $GROQ_MODEL,
@@ -1220,21 +1221,26 @@ if ($BACKEND === 'ollama') {
         $groq_payload
     );
 
-    if ($result['error']) {
-        http_response_code(502);
-        echo json_encode(['error' => 'Error conectando con Groq: ' . $result['error']]);
-        exit;
-    }
+    $groq_ok = !$result['error'] && $result['code'] === 200;
+    $data    = $groq_ok ? json_decode($result['body'], true) : null;
+    $groq_ok = $groq_ok && isset($data['choices'][0]['message']['content']);
 
-    $data = json_decode($result['body'], true);
-    if ($result['code'] !== 200 || !isset($data['choices'][0]['message']['content'])) {
+    if ($groq_ok) {
+        $reply_text = $data['choices'][0]['message']['content'];
+    } elseif ($BACKEND === 'groq_ollama') {
+        // Groq falló → intentar Ollama como respaldo
+        $reply_text = callOllama($system_prompt, $clean_messages, $max_tokens);
+        if ($reply_text === null) {
+            http_response_code(502);
+            echo json_encode(['error' => 'Groq y Ollama no disponibles. Inténtalo más tarde.']);
+            exit;
+        }
+    } else {
         http_response_code($result['code'] ?: 502);
-        $detail = $data['error']['message'] ?? $result['body'];
+        $detail = isset($data['error']['message']) ? $data['error']['message'] : $result['body'];
         echo json_encode(['error' => 'Error de Groq: ' . $detail]);
         exit;
     }
-
-    $reply_text = $data['choices'][0]['message']['content'];
 
 // ══════════════════════════════════════════════════════
 // BACKEND: CLAUDE / ANTHROPIC (de pago)
