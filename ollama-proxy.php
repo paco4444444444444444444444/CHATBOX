@@ -930,6 +930,39 @@ function isFevalRelated($msg) {
         'titulaci','certificacion','certificación','diploma',
     ];
 
+    // Temas/oficios que FEVAL NO cubre — si aparecen, bloquear aunque "curso" esté presente
+    $non_feval_topics = [
+        // Oficios de construcción/mantenimiento
+        'fontanero','fontanería','fontaneria','electricista','carpintero','carpintería',
+        'carpinteria','albañil','soldador','soldadura','pintor de','cerrajero',
+        // Hostelería/alimentación
+        'cocinero','cocina','chef','repostero','pastelero','camarero','hostelería','hosteleria',
+        // Sanidad
+        'médico','medico','medicina','enfermero','enfermería','farmacéutico','farmacia',
+        'veterinario','veterinaria','fisioterapeuta','óptico',
+        // Jurídico/financiero
+        'abogado','derecho jurídico','contable','contabilidad','fiscal','asesor fiscal',
+        // Automoción
+        'mecánico','mecanico','automoción','chófer','chofer','camionero','conductor de',
+        // Belleza/bienestar
+        'peluquero','peluquería','peluqueria','esteticista','estética','tatuador','yoga','pilates',
+        // Jardinería/medio ambiente
+        'jardinero','jardinería','jardineria',
+        // Idiomas
+        'inglés','ingles','francés','frances','alemán','aleman','italiano','chino','árabe',
+        'idioma','idiomas',
+        // Deporte/música
+        'deporte','fitness','gimnasio','músico','musico','guitarra','piano','baile','danza',
+        // Redes sociales (uso personal, no marketing profesional)
+        'tiktok','youtube','twitch','streaming','influencer',
+        // Otras profesiones no TIC
+        'agricultor','ganadero','veterinari',
+    ];
+
+    foreach ($non_feval_topics as $neg) {
+        if (mb_strpos($q, $neg) !== false) return false;
+    }
+
     foreach ($feval_keywords as $kw) {
         if (mb_strpos($q, $kw) !== false) return true;
     }
