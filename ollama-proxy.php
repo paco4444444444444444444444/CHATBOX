@@ -655,7 +655,11 @@ $list_keys = ['todos los cursos','qué cursos hay','que cursos hay','lista de cu
                'qué hay disponible','que hay disponible','mostrar cursos','ver cursos',
                'cuál es el catálogo','cual es el catalogo','todo el catálogo','todo el catalogo',
                'qué se imparte','que se imparte','qué se enseña','que se enseña',
-               'qué formación hay','que formacion hay','cursos que tenéis','cursos que teneis'];
+               'qué formación hay','que formacion hay','cursos que tenéis','cursos que teneis',
+               'cursos desempleados','cursos para desempleados','cursos de desempleados',
+               'cursos empleados','cursos para empleados','cursos de empleados',
+               'cursos ocupados','cursos para ocupados','cursos de ocupados',
+               'cursos para trabajadores','cursos para parados','cursos para trabajar'];
 $is_listing = false;
 foreach ($list_keys as $lk) {
     if (mb_strpos(mb_strtolower($last_user_msg), $lk) !== false) { $is_listing = true; break; }
@@ -756,7 +760,7 @@ $faq_responses = [
      'answer' => "**FEVAL Formación** es la plataforma de formación TIC de la Institución Ferial de Extremadura. Ofrecemos más de 70 cursos TIC gratuitos en 2026, financiados por la Junta de Extremadura y el SEXPE.\n\nContacto: formacion@feval.com | 924 829 100 | 618 457 790"],
 
     // Recoger diplomas / horario sede
-    ['keys' => ['recoger el diploma','recoger mi diploma','recoger el certificado','recoger mi certificado','recoger el título','horario diploma','horario feval','horario sede','horario oficina','hora abren','a que hora abren','cuando abren','instalaciones','don benito','paseo de feval'],
+    ['keys' => ['recoger el diploma','recoger mi diploma','recoger el certificado','recoger mi certificado','recoger el título','recoger los diplomas','recoger los certificados','recoger los títulos','recogida de diplomas','recogida de certificados','recogida de títulos','ir a recoger','horario diploma','horario feval','horario sede','horario oficina','horario de visita','horario de atenci','horario de las oficinas','hora abren','a que hora abren','cuando abren','visitar las instalaciones','instalaciones','don benito','paseo de feval'],
      'answer' => "Puedes recoger los diplomas de **lunes a viernes de 08:00h a 15:00h** en las instalaciones del Centro Tecnológico de FEVAL, sito en el Paseo de FEVAL s/n, Don Benito (Badajoz)."],
 
     // Cuándo llega el diploma
@@ -796,7 +800,7 @@ $faq_responses = [
      'answer' => "Abandonar un curso **no te repercute en nada** ni genera sanciones para futuras formaciones con FEVAL o SEXPE. Simplemente no obtendrás el diploma de aprovechamiento de ese curso.\n\nSi no vas a poder realizarlo, comunícalo cuanto antes a formacion@feval.com o 924 829 100 para que tu plaza pueda asignarse a otro alumno."],
 
     // Prestaciones / subsidio / demanda de empleo
-    ['keys' => ['prestaci','subsidio','demanda de empleo','estoy en paro','cobro el paro','me quitan','me suspenden','me afecta el curso','afecta al paro','afecta a la prestaci'],
+    ['keys' => ['prestaci','subsidio','demanda de empleo','intermediaci','estoy en paro','cobro el paro','me quitan','me suspenden','me afecta el curso','afecta al paro','afecta a la prestaci'],
      'answer' => "Realizar un curso **no suspende tu demanda de empleo** y se mantiene la intermediación (salvo que tú renuncies a ella). Sin embargo, si tienes dudas sobre prestaciones o subsidios concretos, contacta con tu **Centro de Empleo más cercano**, ya que FEVAL no tiene acceso a tus datos en el SEXPE."],
 
     // Online / clases en directo / grabaciones
