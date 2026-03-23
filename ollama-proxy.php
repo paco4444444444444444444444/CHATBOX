@@ -696,6 +696,32 @@ if ($is_listing) {
     exit;
 }
 
+// ── Listado de áreas (solo nombres, sin cursos) ───────────────────────────────
+$area_list_keys = [
+    'dime las areas','dime las áreas','las areas solo','las áreas solo',
+    'solo las areas','solo las áreas','que areas hay','qué areas hay',
+    'qué áreas hay','que áreas hay','cuales son las areas','cuáles son las áreas',
+    'cuales son las áreas','cuáles son las areas','areas disponibles',
+    'áreas disponibles','areas de formacion','áreas de formación',
+    'areas que teneis','áreas que tenéis','que areas teneis','qué áreas tenéis',
+    'mostrar areas','mostrar áreas','ver areas','ver áreas','lista de areas','lista de áreas',
+];
+$is_area_list = false;
+foreach ($area_list_keys as $alk) {
+    if (mb_strpos(mb_strtolower($last_user_msg), $alk) !== false) { $is_area_list = true; break; }
+}
+if ($is_area_list) {
+    $area_names = array_keys($AREAS_CATALOG);
+    $out = "Las áreas de formación disponibles en FEVAL son:\n\n";
+    foreach ($area_names as $a) {
+        $out .= "* **{$a}**\n";
+    }
+    $out .= "\n¿Quieres ver los cursos de alguna área en concreto?";
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['content' => [['type' => 'text', 'text' => $out]]], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // ── Búsqueda por área cuando el usuario nombra el área (antes de FAQ) ─────────
 // Mapa: keywords de usuario → clave exacta en $AREAS_CATALOG
 $AREA_KEYS = [
