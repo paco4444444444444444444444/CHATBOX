@@ -676,14 +676,15 @@ if ($is_listing) {
 // ── Búsqueda por área cuando el usuario nombra el área (antes de FAQ) ─────────
 // Mapa: keywords de usuario → clave exacta en $AREAS_CATALOG
 $AREA_KEYS = [
+    // Diseño primero para que 'redes sociales' no colisione con 'redes' de Ciberseguridad
+    'Diseño Gráfico y Marketing'    => ['diseño gráfico','diseño grafico','redes sociales','photoshop','illustrator','premiere','marketing','community manager','instagram','facebook','whatsapp'],
     'Cloud, IA y Análisis de Datos' => ['inteligencia artificial','ia generativa','chatgpt','machine learning','llm','cloud','nube','azure','aws','google cloud'],
-    'Ciberseguridad y Redes'        => ['ciberseguridad','hacking','seguridad informática','seguridad informatica','redes','ccna','ccst','forense','incidentes de seguridad'],
-    'Analítica de Datos y BI'       => ['analítica','analitica','business intelligence','power bi','análisis de datos','analisis de datos'],
+    'Ciberseguridad y Redes'        => ['ciberseguridad','hacking','seguridad informática','seguridad informatica','redes cisco','redes ccna','ccna','ccst','forense','incidentes de seguridad'],
+    'Analítica de Datos y BI'       => ['analítica','analitica','business intelligence','power bi','excel',' bi ','análisis de datos','analisis de datos'],
     'Desarrollo de Software'        => ['programaci','javascript','python','bases de datos','desarrollo de software'],
     'Videojuegos'                   => ['videojuego','unity','game design','concept art','realidad virtual','animaci'],
     'Gestión de Proyectos'          => ['gestión de proyectos','gestion de proyectos','pmi','scrum','agile'],
     'Sistemas y Soporte TIC'        => ['soporte tic','windows server','linux','lpic','it support'],
-    'Diseño Gráfico y Marketing'    => ['diseño gráfico','diseño grafico','photoshop','illustrator','premiere','marketing','community manager','redes sociales','instagram','facebook','whatsapp'],
     'Agricultura 4.0 y Drónica'    => ['agricultura','dron','drónica','dronica','teledetección','teledeteccion','fotogrametría','fotogrametria','precision'],
 ];
 $area_match_key  = null;
