@@ -647,7 +647,15 @@ function coursesInConversation($messages, $catalog) {
 // ── Listado completo de cursos por área (intercepta antes del LLM) ───────────
 $list_keys = ['todos los cursos','qué cursos hay','que cursos hay','lista de cursos','ver todos los cursos',
                'cuántos cursos','cuantos cursos','todas las áreas','todas las areas','qué áreas','que areas',
-               'qué ofertas','que ofertas','cursos disponibles','ver el catálogo','ver el catalogo'];
+               'qué ofertas','que ofertas','cursos disponibles','ver el catálogo','ver el catalogo',
+               'qué formaciones','que formaciones','cuáles son los cursos','cuales son los cursos',
+               'qué cursos tenéis','que cursos teneis','qué cursos tiene','que cursos tiene',
+               'formaciones disponibles','catálogo completo','catalogo completo',
+               'listado de cursos','listado de formaciones','qué ofrecéis','que ofreceis',
+               'qué hay disponible','que hay disponible','mostrar cursos','ver cursos',
+               'cuál es el catálogo','cual es el catalogo','todo el catálogo','todo el catalogo',
+               'qué se imparte','que se imparte','qué se enseña','que se enseña',
+               'qué formación hay','que formacion hay','cursos que tenéis','cursos que teneis'];
 $is_listing = false;
 foreach ($list_keys as $lk) {
     if (mb_strpos(mb_strtolower($last_user_msg), $lk) !== false) { $is_listing = true; break; }
@@ -1026,7 +1034,9 @@ function scrapeCoursesFromWeb($publicUrl) {
 
 $live_catalog = scrapeCoursesFromWeb($PUBLIC_URL);
 if ($live_catalog) {
-    $system_prompt .= "\n\n" . $live_catalog;
+    $system_prompt .= "\n\n=== CATÁLOGO EN TIEMPO REAL (REFERENCIA INTERNA — NO LISTAR) ===\n";
+    $system_prompt .= "ATENCIÓN: Estos datos son SOLO para responder consultas ESPECÍFICAS sobre un curso concreto (fechas, descripción, enlace). NUNCA hagas un listado completo de todos los cursos ni de todas las áreas aunque el usuario te lo pida. Si el usuario pide ver todos los cursos o el catálogo, responde ÚNICAMENTE: \"Puedes consultar el catálogo completo en: https://formacionfeval.com/index.php/cursos-feval\"\n\n";
+    $system_prompt .= $live_catalog;
 }
 
 // ─── Llamar al backend ────────────────────────────────────────────────────────
