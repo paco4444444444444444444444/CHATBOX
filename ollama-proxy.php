@@ -657,7 +657,7 @@ function coursesInConversation($messages, $catalog) {
 
 // ── Listado completo de cursos por área (intercepta antes del LLM) ───────────
 $list_keys = ['todos los cursos','qué cursos hay','que cursos hay','lista de cursos','ver todos los cursos',
-               'cuántos cursos','cuantos cursos','todas las áreas','todas las areas','qué áreas','que areas',
+               'cuántos cursos','cuantos cursos','todas las áreas','todas las areas',
                'qué ofertas','que ofertas','cursos disponibles','ver el catálogo','ver el catalogo',
                'qué formaciones','que formaciones','cuáles son los cursos','cuales son los cursos',
                'qué cursos tenéis','que cursos teneis','qué cursos tiene','que cursos tiene',
@@ -705,10 +705,18 @@ $area_list_keys = [
     'áreas disponibles','areas de formacion','áreas de formación',
     'areas que teneis','áreas que tenéis','que areas teneis','qué áreas tenéis',
     'mostrar areas','mostrar áreas','ver areas','ver áreas','lista de areas','lista de áreas',
+    'qué areas','que areas','qué áreas','que áreas',
 ];
 $is_area_list = false;
-foreach ($area_list_keys as $alk) {
-    if (mb_strpos(mb_strtolower($last_user_msg), $alk) !== false) { $is_area_list = true; break; }
+// Mensaje que es exactamente "area" o "areas" (con posibles espacios o signos)
+$msg_clean = trim(mb_strtolower(preg_replace('/[^a-záéíóúüñ]/u', '', $last_user_msg)));
+if ($msg_clean === 'area' || $msg_clean === 'areas' || $msg_clean === 'área' || $msg_clean === 'áreas') {
+    $is_area_list = true;
+}
+if (!$is_area_list) {
+    foreach ($area_list_keys as $alk) {
+        if (mb_strpos(mb_strtolower($last_user_msg), $alk) !== false) { $is_area_list = true; break; }
+    }
 }
 if ($is_area_list) {
     $area_names = array_keys($AREAS_CATALOG);
