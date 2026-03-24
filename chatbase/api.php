@@ -120,20 +120,25 @@ if ($action === 'discover_site') {
     if (!filter_var($url, FILTER_VALIDATE_URL)) api_err('Invalid URL');
 
     // Helper: extract same-domain links from HTML
-    function extract_links(string $html, string $base, string $host): array {
+    function cb_cb_extract_links(string $html, string $base, string $host): array {
         $dom = new DOMDocument();
         @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
         $skip = '/\.(jpg|jpeg|png|gif|pdf|zip|doc|xls|css|js|xml|ico|svg|woff|ttf|mp4|mp3|webp)(\?|$)/i';
         $links = [];
         foreach ($dom->getElementsByTagName('a') as $a) {
             $href = trim($a->getAttribute('href'));
-            if (!$href || str_starts_with($href,'#') || str_starts_with($href,'mailto:') || str_starts_with($href,'tel:')) continue;
-            if (str_starts_with($href,'/')) $href = $base . $href;
-            elseif (!str_starts_with($href,'http')) continue;
+            if (!$href) continue;
+            $h0 = $href[0] ?? '';
+            if ($h0 === '#') continue;
+            if (strpos($href,'mailto:')===0 || strpos($href,'tel:')===0) continue;
+            if ($h0 === '/') $href = $base . $href;
+            elseif (strpos($href,'http') !== 0) continue;
             $href = strtok($href,'#');
-            if ((parse_url($href,'host') ?? '') !== $host) continue;
+            $hp = parse_url($href);
+            if (($hp['host'] ?? '') !== $host) continue;
             if (preg_match($skip, $href)) continue;
-            $text = trim($a->textContent) ?: basename(parse_url($href, PHP_URL_PATH)) ?: $href;
+            $text = trim($a->textContent);
+            if (!$text) $text = basename($hp['path'] ?? '') ?: $href;
             $links[$href] = mb_substr($text, 0, 80);
         }
         $tl = $dom->getElementsByTagName('title');
@@ -153,7 +158,7 @@ if ($action === 'discover_site') {
     $base   = $parsed['scheme'] . '://' . $parsed['host'];
     $host   = $parsed['host'];
 
-    $r0      = extract_links($html, $base, $host);
+    $r0      = cb_extract_links($html, $base, $host);
     $seen    = [$final_url => true];
     $pages   = [['url' => $final_url, 'text' => $r0['title'] ?: 'Página principal']];
 
@@ -183,7 +188,7 @@ if ($action === 'discover_site') {
             $body = curl_multi_getcontent($c);
             curl_multi_remove_handle($mh,$c); curl_close($c);
             if (!$body) continue;
-            $r = extract_links($body, $base, $host);
+            $r = cb_extract_links($body, $base, $host);
             foreach ($r['links'] as $href => $text) {
                 if (!isset($seen[$href]) && count($pages) < 300) {
                     $seen[$href] = true;
