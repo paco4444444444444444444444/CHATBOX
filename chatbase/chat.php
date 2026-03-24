@@ -9,7 +9,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
-function cb_err(string $msg, int $code = 400): never {
+function cb_err($msg, $code = 400) {
     http_response_code($code);
     echo json_encode(['error' => $msg]);
     exit;
@@ -37,6 +37,28 @@ $src = cb_db()->prepare("SELECT type, name, content FROM sources WHERE bot_id=? 
 $src->execute([$bot_id]);
 $sources = $src->fetchAll();
 
+// Build system prompt
+$system = "Eres un asistente virtual de IA llamado \"{$bot['name']}\". "
+    . ($bot['description'] ? "Descripción: {$bot['description']}. " : '')
+    . "Responde siempre de forma clara, concisa y útil.\n";
+
+if ($bot['instructions']) {
+    $system .= "\n=== INSTRUCCIONES ===\n{$bot['instructions']}\n";
+}
+if ($knowledge) {
+    $system .= "\n=== BASE DE CONOCIMIENTO ===\n{$knowledge}\n\n"
+        . "Responde SOLO basándote en la información anterior. Si no encuentras la respuesta, dilo claramente.";
+}
+
+// Validate history
+$valid = [];
+foreach ($history as $m) {
+    if (in_array($m['role'] ?? '', ['user', 'assistant']) && isset($m['content'])) {
+        $valid[] = ['role' => $m['role'], 'content' => (string)$m['content']];
+    }
+}
+if (empty($valid)) cb_err('No messages');
+
 // ── RAG: score each source by relevance to the user's last question ──────
 $user_query = '';
 foreach (array_reverse($valid) as $m) {
@@ -61,7 +83,6 @@ function rag_score($query, $source) {
     return $score;
 }
 
-// Sort sources by relevance
 $user_query_ref = $user_query;
 usort($sources, function($a, $b) use ($user_query_ref) {
     return rag_score($user_query_ref, $b) - rag_score($user_query_ref, $a);
@@ -85,28 +106,6 @@ foreach ($sources as $s) {
     $knowledge .= $chunk;
     $knowledge_used += $chunk_len;
 }
-
-// Build system prompt
-$system = "Eres un asistente virtual de IA llamado \"{$bot['name']}\". "
-    . ($bot['description'] ? "Descripción: {$bot['description']}. " : '')
-    . "Responde siempre de forma clara, concisa y útil.\n";
-
-if ($bot['instructions']) {
-    $system .= "\n=== INSTRUCCIONES ===\n{$bot['instructions']}\n";
-}
-if ($knowledge) {
-    $system .= "\n=== BASE DE CONOCIMIENTO ===\n{$knowledge}\n\n"
-        . "Responde SOLO basándote en la información anterior. Si no encuentras la respuesta, dilo claramente.";
-}
-
-// Validate history
-$valid = [];
-foreach ($history as $m) {
-    if (in_array($m['role'] ?? '', ['user', 'assistant']) && isset($m['content'])) {
-        $valid[] = ['role' => $m['role'], 'content' => (string)$m['content']];
-    }
-}
-if (empty($valid)) cb_err('No messages');
 
 // Save user message
 $last = end($valid);
