@@ -111,7 +111,7 @@ usort($sources, function($a, $b) use ($uq) {
 // Claude:             200k tokens → ~700k chars
 // Ollama:             131k tokens → ~500k chars
 $knowledge       = '';
-if ($backend === 'groq')        $knowledge_limit = 400000;
+if ($backend === 'groq')        $knowledge_limit = 24000; // Groq free: 12k TPM → ~6k tokens input
 elseif ($backend === 'gemini')  $knowledge_limit = 2000000;
 elseif ($backend === 'claude')  $knowledge_limit = 700000;
 elseif ($backend === 'ollama')  $knowledge_limit = 500000;
@@ -166,9 +166,9 @@ function call_groq($system, $valid, $bot_model) {
     if (!$keys) return null;
     $messages = array_merge([['role' => 'system', 'content' => $system]], $valid);
     $payload = [
-        'model'      => $bot_model ? $bot_model : 'llama-3.3-70b-versatile',
+        'model'      => $bot_model ? $bot_model : 'llama-3.1-8b-instant', // 131k TPM gratis
         'messages'   => $messages,
-        'max_tokens' => 32768,
+        'max_tokens' => 8192,
     ];
     foreach ($keys as $key) {
         $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
