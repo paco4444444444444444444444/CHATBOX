@@ -101,11 +101,13 @@ usort($sources, function($a, $b) use ($uq) {
 });
 
 // Build knowledge block — máximo real por ventana de contexto de cada modelo
-// Groq llama-3.3-70b: 128k tokens → ~400k chars (reservando 32k para respuesta+historial)
-// Claude:             200k tokens → ~700k chars (reservando 64k para respuesta+historial)
+// Groq llama-3.3-70b: 128k tokens → ~400k chars
+// Gemini Flash:       1M tokens   → ~2M chars  (ventana enorme!)
+// Claude:             200k tokens → ~700k chars
 // Ollama:             131k tokens → ~500k chars
 $knowledge       = '';
 if ($backend === 'groq')        $knowledge_limit = 400000;
+elseif ($backend === 'gemini')  $knowledge_limit = 2000000;
 elseif ($backend === 'claude')  $knowledge_limit = 700000;
 elseif ($backend === 'ollama')  $knowledge_limit = 500000;
 else                            $knowledge_limit = 400000;
@@ -150,31 +152,68 @@ $backend   = $bot['backend'];
 $bot_model = isset($bot['model']) ? $bot['model'] : '';
 $response_text = '';
 
-if ($backend === 'groq') {
+// Helper: llamar a Groq con rotación de keys (reutilizado por Gemini como fallback)
+function call_groq($system, $valid, $bot_model) {
     $raw_keys = cb_cfg('groq_key');
     $keys = array_values(array_filter(array_map('trim', preg_split('/[\n,]+/', $raw_keys))));
-    if (!$keys) cb_err('Groq API key not configured', 503);
-
-    $messages = array_merge(array(array('role' => 'system', 'content' => $system)), $valid);
-    $payload = array(
+    if (!$keys) return null;
+    $messages = array_merge([['role' => 'system', 'content' => $system]], $valid);
+    $payload = [
         'model'      => $bot_model ? $bot_model : 'llama-3.3-70b-versatile',
         'messages'   => $messages,
         'max_tokens' => 32768,
-    );
-
-    $data = null;
+    ];
     foreach ($keys as $key) {
         $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
-        curl_setopt_array($ch, array(
+        curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode($payload),
-            CURLOPT_HTTPHEADER     => array(
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $key,
-            ),
-            CURLOPT_TIMEOUT => 120,
-        ));
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Authorization: Bearer ' . $key],
+            CURLOPT_TIMEOUT        => 120,
+        ]);
+        $res  = curl_exec($ch);
+        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $data = json_decode($res, true);
+        if ($http === 429) continue;
+        return $data;
+    }
+    return null;
+}
+
+if ($backend === 'gemini') {
+    $raw_keys = cb_cfg('gemini_key');
+    $keys = array_values(array_filter(array_map('trim', preg_split('/[\n,]+/', $raw_keys))));
+    if (!$keys) cb_err('Gemini API key not configured', 503);
+
+    $model = $bot_model ? $bot_model : 'gemini-1.5-flash';
+
+    // Convertir historial al formato nativo de Gemini
+    $contents = [];
+    foreach ($valid as $m) {
+        $contents[] = [
+            'role'  => $m['role'] === 'assistant' ? 'model' : 'user',
+            'parts' => [['text' => $m['content']]],
+        ];
+    }
+    $payload = [
+        'systemInstruction' => ['parts' => [['text' => $system]]],
+        'contents'          => $contents,
+        'generationConfig'  => ['maxOutputTokens' => 8192],
+    ];
+
+    $data = null;
+    foreach ($keys as $key) {
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . urlencode($model) . ':generateContent?key=' . urlencode($key);
+        $ch  = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_TIMEOUT        => 120,
+        ]);
         $res  = curl_exec($ch);
         $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
@@ -182,9 +221,25 @@ if ($backend === 'groq') {
         if ($http === 429) { $data = null; continue; }
         break;
     }
+
+    // Fallback automático a Groq si Gemini está agotado
+    if ($data === null) {
+        $data = call_groq($system, $valid, '');
+        if ($data === null) cb_err('Gemini y Groq en rate limit. Intentalo en unos minutos.', 429);
+        $response_text = $data['choices'][0]['message']['content'] ?? '';
+        if (!$response_text) cb_err('Groq fallback respuesta vacia: ' . json_encode($data), 502);
+    } else {
+        if (isset($data['error'])) cb_err('Gemini error: ' . ($data['error']['message'] ?? json_encode($data['error'])), 502);
+        $response_text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        if (!$response_text) cb_err('Gemini respuesta vacia: ' . json_encode($data), 502);
+    }
+
+} elseif ($backend === 'groq') {
+    if (!cb_cfg('groq_key')) cb_err('Groq API key not configured', 503);
+    $data = call_groq($system, $valid, $bot_model);
     if ($data === null) cb_err('Groq rate limit alcanzado. Intentalo en unos minutos.', 429);
-    if (isset($data['error'])) cb_err('Groq error: ' . (isset($data['error']['message']) ? $data['error']['message'] : json_encode($data['error'])), 502);
-    $response_text = isset($data['choices'][0]['message']['content']) ? $data['choices'][0]['message']['content'] : '';
+    if (isset($data['error'])) cb_err('Groq error: ' . ($data['error']['message'] ?? json_encode($data['error'])), 502);
+    $response_text = $data['choices'][0]['message']['content'] ?? '';
     if (!$response_text) cb_err('Groq respuesta vacia: ' . json_encode($data), 502);
 
 } elseif ($backend === 'claude') {

@@ -58,10 +58,12 @@
 // ─── CONFIGURACIÓN — EDITA SOLO ESTA SECCIÓN ─────────────────────────────────
 
 // Backend a usar
-// 'groq_ollama' → Groq como principal + Ollama local como respaldo automático (RECOMENDADO)
+// 'gemini_groq' → Gemini Flash principal (1M tokens) + Groq fallback (RECOMENDADO)
+// 'gemini'      → Solo Gemini Flash
+// 'groq_ollama' → Groq como principal + Ollama local como respaldo automático
 // 'groq'        → Solo Groq nube
 // 'ollama'      → Solo Ollama local
-$BACKEND = 'groq_ollama';
+$BACKEND = 'gemini_groq';
 
 // URL pública del sitio (la que ven los usuarios en los enlaces)
 // Cámbiala si tu dominio/túnel cambia
@@ -86,7 +88,13 @@ $OLLAMA_PORT  = 11434;
 //   mistral:7b        → alternativa rápida y equilibrada
 $OLLAMA_MODEL = 'qwen2.5:7b';
 
-// ── Groq — Principal nube gratuita (sin GPU necesaria) ────────────────────────
+// ── Gemini Flash — Principal nube gratuita (1M tokens de contexto!) ──────────
+// Registro gratis en: aistudio.google.com → Get API Key
+// Puedes poner múltiples keys separadas por coma para rotación automática
+$GEMINI_API_KEYS = ['AIzaSy_TU_KEY_AQUI'];  // Añade más: ['key1','key2','key3']
+$GEMINI_MODEL    = 'gemini-1.5-flash';       // gemini-2.0-flash, gemini-1.5-flash-8b
+
+// ── Groq — Fallback gratuito (sin GPU necesaria) ──────────────────────────────
 // Registro gratis en: https://console.groq.com → API Keys → Create API Key
 // Pega aquí tu API key (empieza por gsk_...)
 $GROQ_API_KEY = 'gsk_REMOVED';
@@ -1322,6 +1330,67 @@ if ($BACKEND === 'ollama') {
     }
 
     $reply_text = $data['content'][0]['text'];
+
+// ══════════════════════════════════════════════════════
+// BACKEND: GEMINI FLASH (gratis, 1M tokens contexto)
+// ══════════════════════════════════════════════════════
+} elseif ($BACKEND === 'gemini' || $BACKEND === 'gemini_groq') {
+
+    // Convertir mensajes al formato nativo de Gemini
+    $gemini_contents = [];
+    foreach ($clean_messages as $m) {
+        $gemini_contents[] = [
+            'role'  => $m['role'] === 'assistant' ? 'model' : 'user',
+            'parts' => [['text' => $m['content']]],
+        ];
+    }
+    $gemini_payload = [
+        'systemInstruction' => $system_prompt ? ['parts' => [['text' => $system_prompt]]] : null,
+        'contents'          => $gemini_contents,
+        'generationConfig'  => ['maxOutputTokens' => $max_tokens],
+    ];
+    if (!$system_prompt) unset($gemini_payload['systemInstruction']);
+
+    $gemini_reply = null;
+    foreach ($GEMINI_API_KEYS as $gkey) {
+        $gurl   = 'https://generativelanguage.googleapis.com/v1beta/models/' . urlencode($GEMINI_MODEL) . ':generateContent?key=' . urlencode($gkey);
+        $result = curlPost($gurl, ['Content-Type: application/json'], $gemini_payload);
+        if ($result['error'] || $result['code'] === 429) continue;
+        $gdata = json_decode($result['body'], true);
+        if (isset($gdata['candidates'][0]['content']['parts'][0]['text'])) {
+            $gemini_reply = $gdata['candidates'][0]['content']['parts'][0]['text'];
+            break;
+        }
+    }
+
+    if ($gemini_reply !== null) {
+        $reply_text = $gemini_reply;
+    } elseif ($BACKEND === 'gemini_groq') {
+        // Fallback automático a Groq
+        $groq_payload = [
+            'model'       => $GROQ_MODEL,
+            'max_tokens'  => $max_tokens,
+            'temperature' => 0.1,
+            'messages'    => array_merge(
+                $system_prompt ? [['role' => 'system', 'content' => $system_prompt]] : [],
+                $clean_messages
+            )
+        ];
+        $result  = curlPost('https://api.groq.com/openai/v1/chat/completions',
+            ['Content-Type: application/json', 'Authorization: Bearer ' . $GROQ_API_KEY],
+            $groq_payload);
+        $gdata   = $result['error'] ? null : json_decode($result['body'], true);
+        $reply_text = $gdata['choices'][0]['message']['content'] ?? null;
+        if (!$reply_text) {
+            http_response_code(502);
+            echo json_encode(['error' => 'Gemini y Groq no disponibles. Inténtalo más tarde.']);
+            exit;
+        }
+    } else {
+        http_response_code(429);
+        echo json_encode(['error' => 'Gemini rate limit alcanzado. Inténtalo en unos minutos.']);
+        exit;
+    }
 
 } else {
     http_response_code(500);

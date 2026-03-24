@@ -57,6 +57,7 @@ function cb_schema(PDO $db): void {
     foreach ([
         'admin_pass'   => password_hash('admin', PASSWORD_BCRYPT, ['cost' => 10]),
         'groq_key'     => '',
+        'gemini_key'   => '',
         'claude_key'   => '',
         'ollama_url'   => 'http://localhost:11434',
         'ollama_model' => 'qwen2.5:7b',

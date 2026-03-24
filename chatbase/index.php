@@ -73,7 +73,7 @@ if (!empty($_SESSION['cb_auth'])) {
 
     // Save settings
     if (($_POST['action'] ?? '') === 'save_settings') {
-        foreach (['groq_key', 'claude_key', 'ollama_url', 'ollama_model'] as $k) {
+        foreach (['groq_key', 'gemini_key', 'claude_key', 'ollama_url', 'ollama_model'] as $k) {
             if (isset($_POST[$k])) cb_set_cfg($k, trim($_POST[$k]));
         }
         if (!empty($_POST['new_pass'])) {
@@ -120,6 +120,7 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5
 .card{background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:24px}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase}
 .badge-groq{background:#dbeafe;color:#1d4ed8}
+.badge-gemini{background:#fef9c3;color:#854d0e}
 .badge-claude{background:#fce7f3;color:#9d174d}
 .badge-ollama{background:#dcfce7;color:#15803d}
 .nav{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 24px;display:flex;align-items:center;gap:24px;height:56px}
@@ -213,6 +214,15 @@ if ($p === 'settings') {
           <input type="hidden" name="action" value="save_settings">
           <h3 style="margin-bottom:4px;font-size:16px">API Keys / LLM</h3>
 
+          <!-- Gemini multi-key -->
+          <div class="field" style="margin-top:16px">
+            <label>Gemini API Keys <span style="font-weight:400;color:#64748b">(una por línea — se rotan automáticamente · fallback automático a Groq)</span></label>
+            <textarea name="gemini_key" rows="3" style="font-family:monospace;font-size:13px" placeholder="AIza_key1...&#10;AIza_key2...&#10;AIza_key3..."><?= h(cb_cfg('gemini_key')) ?></textarea>
+            <div style="font-size:12px;color:#94a3b8;margin-top:4px">
+              ⭐ Contexto 1M tokens · 1.500 req/día por cuenta · 5 cuentas = 7.500/día · Gratis en <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a>
+            </div>
+          </div>
+
           <!-- Groq multi-key -->
           <div class="field" style="margin-top:16px">
             <label>Groq API Keys <span style="font-weight:400;color:#64748b">(una por línea — se rotan automáticamente si una alcanza el límite)</span></label>
@@ -225,7 +235,7 @@ if ($p === 'settings') {
           <div class="grid-2">
             <div class="field">
               <label>Claude (Anthropic) API Key</label>
-              <input type="password" name="claude_key" value="<?= h(cb_cfg('claude_key')) ?>" placeholder="sk-ant-...">
+              <textarea name="claude_key" rows="3" style="font-family:monospace;font-size:13px" placeholder="sk-ant-key1...&#10;sk-ant-key2..."><?= h(cb_cfg('claude_key')) ?></textarea>
             </div>
             <div class="field" style="display:flex;gap:12px">
               <div style="flex:1">
@@ -311,7 +321,7 @@ if ($p === 'bot') {
             <div class="field">
               <label>Backend</label>
               <select name="backend" id="backend-sel" onchange="updateModels(this.value)">
-                <?php foreach (['groq','claude','ollama'] as $b): ?>
+                <?php foreach (['gemini','groq','claude','ollama'] as $b): ?>
                   <option value="<?= $b ?>" <?= $bot['backend']===$b?'selected':'' ?>><?= ucfirst($b) ?></option>
                 <?php endforeach; ?>
               </select>
@@ -321,8 +331,9 @@ if ($p === 'bot') {
               <select name="model" id="model-sel">
                 <?php
                 $models = [
-                  'groq'   => ['llama-3.3-70b-versatile'=>'Llama 3.3 70B (recomendado)','llama-3.1-8b-instant'=>'Llama 3.1 8B (rápido)','mixtral-8x7b-32768'=>'Mixtral 8x7B','gemma2-9b-it'=>'Gemma2 9B'],
-                  'claude' => ['claude-haiku-4-5-20251001'=>'Claude Haiku (rápido)','claude-sonnet-4-6'=>'Claude Sonnet (potente)'],
+                  'gemini' => ['gemini-1.5-flash'=>'Gemini 1.5 Flash (1M ctx, recomendado)','gemini-2.0-flash'=>'Gemini 2.0 Flash (más nuevo)','gemini-1.5-flash-8b'=>'Gemini 1.5 Flash 8B (más rápido)','gemini-1.5-pro'=>'Gemini 1.5 Pro (más potente)'],
+                  'groq'   => ['llama-3.3-70b-versatile'=>'Llama 3.3 70B (128k ctx)','llama-3.1-8b-instant'=>'Llama 3.1 8B (rápido)','mixtral-8x7b-32768'=>'Mixtral 8x7B','gemma2-9b-it'=>'Gemma2 9B'],
+                  'claude' => ['claude-haiku-4-5-20251001'=>'Claude Haiku (rápido)','claude-sonnet-4-6'=>'Claude Sonnet (potente, 64k respuesta)'],
                   'ollama' => [''=>'(usa el modelo de Ajustes)','llama3.2'=>'Llama 3.2','qwen2.5:7b'=>'Qwen2.5 7B','mistral'=>'Mistral'],
                 ];
                 $cur_back  = $bot['backend'];
@@ -718,6 +729,7 @@ if ($p === 'new') {
             <div class="field">
               <label>Backend LLM</label>
               <select name="backend">
+                <option value="gemini">Gemini Flash (1M tokens, gratis)</option>
                 <option value="groq">Groq (llama-3.3-70b, gratis)</option>
                 <option value="claude">Claude (Anthropic, de pago)</option>
                 <option value="ollama">Ollama (local, gratis)</option>
