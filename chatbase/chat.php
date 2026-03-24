@@ -7,6 +7,11 @@ ob_start();
 
 require_once __DIR__ . '/db.php';
 
+// Cargar keys privadas desde config.php (no está en git)
+$_cfg = dirname(__DIR__) . '/config.php';
+if (file_exists($_cfg)) require $_cfg;
+// $GEMINI_API_KEYS y $GROQ_API_KEY quedan disponibles si config.php existe
+
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -154,7 +159,9 @@ $response_text = '';
 
 // Helper: llamar a Groq con rotación de keys (reutilizado por Gemini como fallback)
 function call_groq($system, $valid, $bot_model) {
-    $raw_keys = cb_cfg('groq_key');
+    global $GROQ_API_KEY;
+    // Prioridad: config.php → panel admin
+    $raw_keys = (!empty($GROQ_API_KEY) ? $GROQ_API_KEY . "\n" : '') . cb_cfg('groq_key');
     $keys = array_values(array_filter(array_map('trim', preg_split('/[\n,]+/', $raw_keys))));
     if (!$keys) return null;
     $messages = array_merge([['role' => 'system', 'content' => $system]], $valid);
@@ -183,8 +190,11 @@ function call_groq($system, $valid, $bot_model) {
 }
 
 if ($backend === 'gemini') {
-    $raw_keys = cb_cfg('gemini_key');
-    $keys = array_values(array_filter(array_map('trim', preg_split('/[\n,]+/', $raw_keys))));
+    global $GEMINI_API_KEYS;
+    // Prioridad: config.php → panel admin
+    $cfg_keys = !empty($GEMINI_API_KEYS) ? $GEMINI_API_KEYS : [];
+    $db_keys  = array_values(array_filter(array_map('trim', preg_split('/[\n,]+/', cb_cfg('gemini_key')))));
+    $keys     = array_values(array_unique(array_merge($cfg_keys, $db_keys)));
     if (!$keys) cb_err('Gemini API key not configured', 503);
 
     $model = $bot_model ? $bot_model : 'gemini-1.5-flash';
