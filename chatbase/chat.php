@@ -1,5 +1,10 @@
 <?php
 // chatbase/chat.php — Chat API endpoint (multi-bot)
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+error_reporting(0);
+ob_start();
+
 require_once __DIR__ . '/db.php';
 
 header('Access-Control-Allow-Origin: *');
@@ -7,10 +12,25 @@ header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json; charset=utf-8');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { ob_end_clean(); http_response_code(204); exit; }
+
+// Catch fatal errors and return JSON instead of HTML
+register_shutdown_function(function() {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR))) {
+        ob_end_clean();
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(array('error' => 'Server error: ' . $err['message'] . ' in ' . basename($err['file']) . ':' . $err['line']));
+    } else {
+        ob_end_flush();
+    }
+});
 
 function cb_err($msg, $code = 400) {
+    ob_end_clean();
     http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
     echo json_encode(array('error' => $msg));
     exit;
 }
