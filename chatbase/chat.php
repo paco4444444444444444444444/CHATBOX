@@ -100,9 +100,15 @@ usort($sources, function($a, $b) use ($uq) {
     return rag_score($uq, $b) - rag_score($uq, $a);
 });
 
-// Build knowledge block — sin límite artificial, máximo posible
+// Build knowledge block — máximo real por ventana de contexto de cada modelo
+// Groq llama-3.3-70b: 128k tokens → ~400k chars (reservando 32k para respuesta+historial)
+// Claude:             200k tokens → ~700k chars (reservando 64k para respuesta+historial)
+// Ollama:             131k tokens → ~500k chars
 $knowledge       = '';
-$knowledge_limit = 400000;
+if ($backend === 'groq')        $knowledge_limit = 400000;
+elseif ($backend === 'claude')  $knowledge_limit = 700000;
+elseif ($backend === 'ollama')  $knowledge_limit = 500000;
+else                            $knowledge_limit = 400000;
 $knowledge_used  = 0;
 foreach ($sources as $src_item) {
     $label     = strtoupper($src_item['type']);
@@ -182,30 +188,41 @@ if ($backend === 'groq') {
     if (!$response_text) cb_err('Groq respuesta vacia: ' . json_encode($data), 502);
 
 } elseif ($backend === 'claude') {
-    $key = cb_cfg('claude_key');
-    if (!$key) cb_err('Claude API key not configured', 503);
+    $raw_keys = cb_cfg('claude_key');
+    $keys = array_values(array_filter(array_map('trim', preg_split('/[\n,]+/', $raw_keys))));
+    if (!$keys) cb_err('Claude API key not configured', 503);
 
+    $model   = $bot_model ? $bot_model : 'claude-haiku-4-5-20251001';
+    $max_out = (strpos($model, 'haiku') !== false) ? 8192 : 64000;
     $payload = array(
-        'model'      => $bot_model ? $bot_model : 'claude-haiku-4-5-20251001',
-        'max_tokens' => 8192,
+        'model'      => $model,
+        'max_tokens' => $max_out,
         'system'     => $system,
         'messages'   => $valid,
     );
-    $ch = curl_init('https://api.anthropic.com/v1/messages');
-    curl_setopt_array($ch, array(
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => json_encode($payload),
-        CURLOPT_HTTPHEADER     => array(
-            'Content-Type: application/json',
-            'x-api-key: ' . $key,
-            'anthropic-version: 2023-06-01',
-        ),
-        CURLOPT_TIMEOUT => 120,
-    ));
-    $res = curl_exec($ch);
-    curl_close($ch);
-    $data = json_decode($res, true);
+
+    $data = null;
+    foreach ($keys as $key) {
+        $ch = curl_init('https://api.anthropic.com/v1/messages');
+        curl_setopt_array($ch, array(
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_HTTPHEADER     => array(
+                'Content-Type: application/json',
+                'x-api-key: ' . $key,
+                'anthropic-version: 2023-06-01',
+            ),
+            CURLOPT_TIMEOUT => 120,
+        ));
+        $res  = curl_exec($ch);
+        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $data = json_decode($res, true);
+        if ($http === 429) { $data = null; continue; }
+        break;
+    }
+    if ($data === null) cb_err('Claude rate limit alcanzado. Intentalo en unos minutos.', 429);
     if (isset($data['error'])) cb_err('Claude error: ' . (isset($data['error']['message']) ? $data['error']['message'] : json_encode($data['error'])), 502);
     $response_text = isset($data['content'][0]['text']) ? $data['content'][0]['text'] : '';
     if (!$response_text) cb_err('Claude respuesta vacia: ' . json_encode($data), 502);
