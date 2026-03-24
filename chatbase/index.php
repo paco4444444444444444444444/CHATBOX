@@ -24,22 +24,23 @@ if (!empty($_SESSION['cb_auth'])) {
     // Create bot
     if (($_POST['action'] ?? '') === 'create_bot') {
         $id = cb_id();
-        cb_db()->prepare("INSERT INTO bots (id,name,description,instructions,welcome,placeholder,color,backend) VALUES (?,?,?,?,?,?,?,?)")
+        cb_db()->prepare("INSERT INTO bots (id,name,description,instructions,welcome,placeholder,color,backend,model) VALUES (?,?,?,?,?,?,?,?,?)")
             ->execute([$id, trim($_POST['name']), trim($_POST['description'] ?? ''),
                 trim($_POST['instructions'] ?? ''), trim($_POST['welcome'] ?? 'Hola, ¿en qué puedo ayudarte?'),
                 trim($_POST['placeholder'] ?? 'Escribe tu pregunta...'),
-                $_POST['color'] ?? '#2563eb', $_POST['backend'] ?? 'groq']);
+                $_POST['color'] ?? '#2563eb', $_POST['backend'] ?? 'groq',
+                $_POST['model'] ?? '']);
         header('Location: ?p=bot&id=' . $id); exit;
     }
 
     // Update bot
     if (($_POST['action'] ?? '') === 'update_bot') {
         $id = $_POST['bot_id'] ?? '';
-        cb_db()->prepare("UPDATE bots SET name=?,description=?,instructions=?,welcome=?,placeholder=?,color=?,backend=? WHERE id=?")
+        cb_db()->prepare("UPDATE bots SET name=?,description=?,instructions=?,welcome=?,placeholder=?,color=?,backend=?,model=? WHERE id=?")
             ->execute([trim($_POST['name']), trim($_POST['description'] ?? ''),
                 trim($_POST['instructions'] ?? ''), trim($_POST['welcome'] ?? ''),
                 trim($_POST['placeholder'] ?? ''), $_POST['color'] ?? '#2563eb',
-                $_POST['backend'] ?? 'groq', $id]);
+                $_POST['backend'] ?? 'groq', $_POST['model'] ?? '', $id]);
         header('Location: ?p=bot&id=' . $id . '&saved=1'); exit;
     }
 
@@ -280,28 +281,79 @@ if ($p === 'bot') {
         <form method="post">
           <input type="hidden" name="action" value="update_bot">
           <input type="hidden" name="bot_id" value="<?= h($bot_id) ?>">
+
+          <!-- Identidad -->
+          <h3 style="font-size:14px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">Identidad</h3>
           <div class="grid-2">
             <div class="field">
               <label>Nombre del bot</label>
               <input type="text" name="name" value="<?= h($bot['name']) ?>" required>
             </div>
             <div class="field">
-              <label>Backend LLM</label>
-              <select name="backend">
+              <label>Descripción (header del widget)</label>
+              <input type="text" name="description" value="<?= h($bot['description']) ?>" placeholder="Asistente virtual de...">
+            </div>
+          </div>
+
+          <hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0">
+
+          <!-- Modelo -->
+          <h3 style="font-size:14px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">Modelo</h3>
+          <div class="grid-2">
+            <div class="field">
+              <label>Backend</label>
+              <select name="backend" id="backend-sel" onchange="updateModels(this.value)">
                 <?php foreach (['groq','claude','ollama'] as $b): ?>
                   <option value="<?= $b ?>" <?= $bot['backend']===$b?'selected':'' ?>><?= ucfirst($b) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
+            <div class="field">
+              <label>Modelo específico</label>
+              <select name="model" id="model-sel">
+                <?php
+                $models = [
+                  'groq'   => ['llama-3.3-70b-versatile'=>'Llama 3.3 70B (recomendado)','llama-3.1-8b-instant'=>'Llama 3.1 8B (rápido)','mixtral-8x7b-32768'=>'Mixtral 8x7B','gemma2-9b-it'=>'Gemma2 9B'],
+                  'claude' => ['claude-haiku-4-5-20251001'=>'Claude Haiku (rápido)','claude-sonnet-4-6'=>'Claude Sonnet (potente)'],
+                  'ollama' => [''=>'(usa el modelo de Ajustes)','llama3.2'=>'Llama 3.2','qwen2.5:7b'=>'Qwen2.5 7B','mistral'=>'Mistral'],
+                ];
+                $cur_back  = $bot['backend'];
+                $cur_model = $bot['model'] ?? '';
+                foreach ($models[$cur_back] as $mv => $ml):
+                ?>
+                  <option value="<?= h($mv) ?>" <?= $cur_model===$mv?'selected':'' ?>><?= h($ml) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
           </div>
+
+          <hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0">
+
+          <!-- Personalidad -->
+          <h3 style="font-size:14px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">Personalidad del agente</h3>
+
           <div class="field">
-            <label>Descripción (visible en el header del widget)</label>
-            <input type="text" name="description" value="<?= h($bot['description']) ?>" placeholder="Asistente virtual de...">
+            <label>Template de instrucciones</label>
+            <select id="tpl-sel" onchange="applyTemplate(this.value)" style="width:auto;min-width:220px">
+              <option value="">— Seleccionar template —</option>
+              <option value="general">Agente general</option>
+              <option value="support">Soporte al cliente</option>
+              <option value="faq">Bot de FAQs</option>
+              <option value="sales">Asistente de ventas</option>
+              <option value="feval">FEVAL Formación</option>
+            </select>
           </div>
+
           <div class="field">
-            <label>Instrucciones del sistema (comportamiento del bot)</label>
-            <textarea name="instructions" rows="5" placeholder="Eres un asistente de... Responde siempre en español..."><?= h($bot['instructions']) ?></textarea>
+            <label>Instrucciones del sistema</label>
+            <textarea name="instructions" id="instructions" rows="10" placeholder="Describe el rol, comportamiento y restricciones del bot..."><?= h($bot['instructions']) ?></textarea>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px">Puedes usar las secciones: ### Business Context / ### Role / ### Constraints</div>
           </div>
+
+          <hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0">
+
+          <!-- Widget -->
+          <h3 style="font-size:14px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">Widget</h3>
           <div class="grid-2">
             <div class="field">
               <label>Mensaje de bienvenida</label>
@@ -316,8 +368,9 @@ if ($p === 'bot') {
               <input type="color" name="color" value="<?= h($bot['color']) ?>" style="height:42px;cursor:pointer">
             </div>
           </div>
-          <div style="display:flex;gap:12px;align-items:center;margin-top:4px">
-            <button type="submit" class="btn btn-primary">Guardar</button>
+
+          <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
             <form method="post" style="margin:0" onsubmit="return confirm('¿Eliminar bot y todos sus datos?')">
               <input type="hidden" name="action" value="delete_bot">
               <input type="hidden" name="bot_id" value="<?= h($bot_id) ?>">
@@ -326,6 +379,31 @@ if ($p === 'bot') {
           </div>
         </form>
       </div>
+
+<script>
+var MODELS = <?= json_encode($models) ?>;
+function updateModels(backend) {
+  var sel = document.getElementById('model-sel');
+  sel.innerHTML = '';
+  var opts = MODELS[backend] || {};
+  Object.entries(opts).forEach(function([v,l]){ var o=document.createElement('option'); o.value=v; o.textContent=l; sel.appendChild(o); });
+}
+var TEMPLATES = {
+  general: "### Business Context\n[Describe tu empresa o servicio aquí]\n\n### Role\n- Primary Function: Eres un asistente de IA que ayuda a los usuarios con sus consultas. Ofrece respuestas claras, amables y eficientes.\n- Si una pregunta no está clara, pide aclaraciones.\n- Finaliza siempre con una nota positiva.\n\n### Constraints\n1. No Divulgar Datos: Nunca menciones explícitamente que tienes acceso a datos de entrenamiento.\n2. Mantener el Foco: Si el usuario intenta desviar la conversación, redirige educadamente.\n3. Uso Exclusivo de los Datos: Responde solo basándote en la información proporcionada.",
+  support: "### Business Context\n[Nombre empresa] es [descripción del negocio].\n\n### Role\n- Eres el agente de soporte al cliente de [empresa].\n- Tu objetivo es resolver dudas, problemas técnicos e incidencias de forma rápida y empática.\n- Si no puedes resolver el problema, escala al equipo humano indicando: soporte@empresa.com\n\n### Constraints\n1. No inventes información sobre productos o políticas.\n2. Si no sabes la respuesta, dilo claramente y proporciona el contacto de soporte.\n3. Mantén siempre un tono profesional y empático.",
+  faq: "### Role\n- Eres un bot de preguntas frecuentes.\n- Responde únicamente con la información de la base de conocimiento.\n- Si la pregunta no está en la base de conocimiento, responde: 'No tengo información sobre eso. Puedes contactar con nosotros en [email].'\n\n### Constraints\n1. No inventes respuestas.\n2. Sé conciso y directo.\n3. Si una FAQ tiene múltiples partes, responde por pasos.",
+  sales: "### Business Context\n[Empresa] ofrece [productos/servicios].\n\n### Role\n- Eres un asistente de ventas amable y profesional.\n- Tu objetivo es informar sobre productos, precios y disponibilidad.\n- Guía al usuario hacia la compra de forma natural, sin ser agresivo.\n- Para cerrar ventas, dirige al usuario a: [URL de compra o contacto]\n\n### Constraints\n1. No prometas descuentos o condiciones que no estén confirmados.\n2. Si el precio no está en la base de conocimiento, indica que se contacte con ventas.\n3. Mantén siempre un tono positivo y orientado al cliente.",
+  feval: "### Business Context\nFEVAL es una iniciativa de formación desarrollada en colaboración con SEXPE para ofrecer educación digital de alta calidad a través del 'Plan Formativo 2026'. La plataforma ofrece 70 cursos online en 9 áreas temáticas, incluyendo IA, Big Data, Ciberseguridad y Desarrollo de Software, diseñados para empleados y desempleados de Extremadura. Todos los cursos son GRATUITOS.\n\n### Role\n- Primary Function: Eres un asistente de IA que ayuda a los usuarios con sus consultas sobre cursos, preinscripción, diplomas y cualquier duda sobre la formación.\n- Escucha atentamente al usuario, comprende sus necesidades y ayúdale o dirígele a los recursos apropiados.\n- Si una pregunta no está clara, solicita aclaraciones.\n- Finaliza siempre con una nota positiva.\n\n### Constraints\n1. No Divulgar Datos: Nunca menciones explícitamente que tienes acceso a datos de entrenamiento.\n2. Mantener el Foco: Si el usuario intenta desviar la conversación a temas no relacionados, redirige educadamente.\n3. Uso Exclusivo de los Datos: Responde solo basándote en la información de formación proporcionada.\n4. Si no encuentras la respuesta, indica: 'Para más información contacta con formacion@feval.com o llama al 924 829 100.'"
+};
+function applyTemplate(key) {
+  if (!key) return;
+  if (document.getElementById('instructions').value.trim() && !confirm('¿Reemplazar las instrucciones actuales con el template?')) {
+    document.getElementById('tpl-sel').value = ''; return;
+  }
+  document.getElementById('instructions').value = TEMPLATES[key] || '';
+  document.getElementById('tpl-sel').value = '';
+}
+</script>
 
       <?php elseif ($tab === 'sources'): ?>
       <!-- SOURCES -->

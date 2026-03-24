@@ -26,6 +26,7 @@ function cb_schema(PDO $db): void {
         placeholder  TEXT NOT NULL DEFAULT 'Escribe tu pregunta...',
         color        TEXT NOT NULL DEFAULT '#2563eb',
         backend      TEXT NOT NULL DEFAULT 'groq',
+        model        TEXT NOT NULL DEFAULT '',
         created_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE TABLE IF NOT EXISTS sources (
@@ -50,6 +51,9 @@ function cb_schema(PDO $db): void {
         v TEXT NOT NULL DEFAULT ''
     );
     ");
+    // Migration: add model column if missing (for existing DBs)
+    try { $db->exec("ALTER TABLE bots ADD COLUMN model TEXT NOT NULL DEFAULT ''"); } catch (\Exception $e) {}
+
     foreach ([
         'admin_pass'   => password_hash('admin', PASSWORD_BCRYPT, ['cost' => 10]),
         'groq_key'     => '',

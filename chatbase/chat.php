@@ -75,6 +75,7 @@ if ($last['role'] === 'user') {
 
 // ── Call LLM backend ──────────────────────────────────────────────────────
 $backend = $bot['backend'];
+$bot_model = $bot['model'] ?? '';
 $response_text = '';
 
 if ($backend === 'groq') {
@@ -82,7 +83,7 @@ if ($backend === 'groq') {
     if (!$key) cb_err('Groq API key not configured', 503);
 
     $payload = [
-        'model'    => 'llama-3.3-70b-versatile',
+        'model'    => $bot_model ?: 'llama-3.3-70b-versatile',
         'messages' => array_merge(
             [['role' => 'system', 'content' => $system]],
             $valid
@@ -110,7 +111,7 @@ if ($backend === 'groq') {
     if (!$key) cb_err('Claude API key not configured', 503);
 
     $payload = [
-        'model'      => 'claude-haiku-4-5-20251001',
+        'model'      => $bot_model ?: 'claude-haiku-4-5-20251001',
         'max_tokens' => 1024,
         'system'     => $system,
         'messages'   => $valid,
@@ -134,7 +135,7 @@ if ($backend === 'groq') {
 
 } elseif ($backend === 'ollama') {
     $ollama_url = rtrim(cb_cfg('ollama_url'), '/');
-    $model      = cb_cfg('ollama_model') ?: 'qwen2.5:7b';
+    $model      = $bot_model ?: cb_cfg('ollama_model') ?: 'qwen2.5:7b';
 
     $msgs = array_merge([['role' => 'system', 'content' => $system]], $valid);
     $payload = ['model' => $model, 'messages' => $msgs, 'stream' => false];
