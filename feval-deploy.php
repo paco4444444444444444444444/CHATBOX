@@ -21,8 +21,13 @@ $BRANCH = 'claude/ai-chatbox-joomla-876Tk';     // rama que dispara el deploy
 $REPO   = 'paco4444444444444444444444/CHATBOX';  // usuario/repositorio de GitHub
 
 $FILES  = [
-    'feval-chatbot.js'  => __DIR__ . '/feval-chatbot.js',
-    'ollama-proxy.php'  => __DIR__ . '/ollama-proxy.php',
+    'feval-chatbot.js'       => __DIR__ . '/feval-chatbot.js',
+    'ollama-proxy.php'       => __DIR__ . '/ollama-proxy.php',
+    'chatbase/db.php'        => __DIR__ . '/chatbase/db.php',
+    'chatbase/index.php'     => __DIR__ . '/chatbase/index.php',
+    'chatbase/chat.php'      => __DIR__ . '/chatbase/chat.php',
+    'chatbase/api.php'       => __DIR__ . '/chatbase/api.php',
+    'chatbase/widget.js'     => __DIR__ . '/chatbase/widget.js',
 ];
 // ─── FIN CONFIGURACIÓN ────────────────────────────────────────────────────────
 
@@ -59,6 +64,9 @@ if ($pushed_branch !== $BRANCH) {
     echo json_encode(['skipped' => true, 'reason' => 'Branch ' . $pushed_branch . ' ignored']);
     exit;
 }
+
+// Crear directorios necesarios
+@mkdir(__DIR__ . '/chatbase', 0755, true);
 
 // Descargar cada archivo desde GitHub raw
 $results = [];
