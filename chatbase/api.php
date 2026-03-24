@@ -119,8 +119,8 @@ if ($action === 'discover_site') {
     $url = trim($raw['url'] ?? '');
     if (!filter_var($url, FILTER_VALIDATE_URL)) api_err('Invalid URL');
 
-    // Helper: extract same-domain links from HTML
-    function cb_cb_extract_links(string $html, string $base, string $host): array {
+    // Helper closure: extract same-domain links from HTML
+    $extract_links = function(string $html, string $base, string $host): array {
         $dom = new DOMDocument();
         @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
         $skip = '/\.(jpg|jpeg|png|gif|pdf|zip|doc|xls|css|js|xml|ico|svg|woff|ttf|mp4|mp3|webp)(\?|$)/i';
@@ -144,7 +144,7 @@ if ($action === 'discover_site') {
         $tl = $dom->getElementsByTagName('title');
         $title = $tl->length ? trim($tl->item(0)->textContent) : '';
         return ['links' => $links, 'title' => $title];
-    }
+    };
 
     // Fetch root
     $ch = curl_init($url);
@@ -158,7 +158,7 @@ if ($action === 'discover_site') {
     $base   = $parsed['scheme'] . '://' . $parsed['host'];
     $host   = $parsed['host'];
 
-    $r0      = cb_extract_links($html, $base, $host);
+    $r0      = $extract_links($html, $base, $host);
     $seen    = [$final_url => true];
     $pages   = [['url' => $final_url, 'text' => $r0['title'] ?: 'Página principal']];
 
@@ -188,7 +188,7 @@ if ($action === 'discover_site') {
             $body = curl_multi_getcontent($c);
             curl_multi_remove_handle($mh,$c); curl_close($c);
             if (!$body) continue;
-            $r = cb_extract_links($body, $base, $host);
+            $r = $extract_links($body, $base, $host);
             foreach ($r['links'] as $href => $text) {
                 if (!isset($seen[$href]) && count($pages) < 300) {
                     $seen[$href] = true;
