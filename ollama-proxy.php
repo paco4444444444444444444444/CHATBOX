@@ -91,7 +91,12 @@ $OLLAMA_MODEL = 'qwen2.5:7b';
 // ── Gemini Flash — Principal nube gratuita (1M tokens de contexto!) ──────────
 // Registro gratis en: aistudio.google.com → Get API Key
 // Puedes poner múltiples keys separadas por coma para rotación automática
-$GEMINI_API_KEYS = ['AIzaSy_TU_KEY_AQUI'];  // Añade más: ['key1','key2','key3']
+$GEMINI_API_KEYS = [
+    'AIzaSy_REMOVED',
+    'AIzaSy_REMOVED',
+    'AIzaSy_REMOVED',
+    'AIzaSy_REMOVED',
+];
 $GEMINI_MODEL    = 'gemini-1.5-flash';       // gemini-2.0-flash, gemini-1.5-flash-8b
 
 // ── Groq — Fallback gratuito (sin GPU necesaria) ──────────────────────────────
