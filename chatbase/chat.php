@@ -37,11 +37,23 @@ $src = cb_db()->prepare("SELECT type, name, content FROM sources WHERE bot_id=? 
 $src->execute([$bot_id]);
 $sources = $src->fetchAll();
 
-// Build knowledge block
+// Build knowledge block (limit to 60k chars to stay within LLM context)
 $knowledge = '';
+$knowledge_limit = 60000;
+$knowledge_used  = 0;
 foreach ($sources as $s) {
-    $label = strtoupper($s['type']);
-    $knowledge .= "\n\n=== {$label}: {$s['name']} ===\n{$s['content']}";
+    $label   = strtoupper($s['type']);
+    $chunk   = "\n\n=== {$label}: {$s['name']} ===\n{$s['content']}";
+    $chunk_len = mb_strlen($chunk);
+    if ($knowledge_used + $chunk_len > $knowledge_limit) {
+        $remaining = $knowledge_limit - $knowledge_used;
+        if ($remaining > 200) {
+            $knowledge .= mb_substr($chunk, 0, $remaining);
+        }
+        break;
+    }
+    $knowledge .= $chunk;
+    $knowledge_used += $chunk_len;
 }
 
 // Build system prompt
@@ -87,7 +99,7 @@ if ($backend === 'groq') {
     $payload = [
         'model'      => $bot_model ?: 'llama-3.3-70b-versatile',
         'messages'   => array_merge([['role' => 'system', 'content' => $system]], $valid),
-        'max_tokens' => 1024,
+        'max_tokens' => 2048,
     ];
 
     $data = null;
@@ -117,6 +129,7 @@ if ($backend === 'groq') {
         break; // success or non-429 error
     }
     if ($data === null) cb_err('Todas las API keys de Groq han alcanzado el límite. Inténtalo en unos minutos.', 429);
+    if (isset($data['error'])) cb_err('Groq error: ' . ($data['error']['message'] ?? json_encode($data['error'])), 502);
     $response_text = $data['choices'][0]['message']['content'] ?? '';
 
 } elseif ($backend === 'claude') {
@@ -144,6 +157,7 @@ if ($backend === 'groq') {
     $res = curl_exec($ch);
     curl_close($ch);
     $data = json_decode($res, true);
+    if (isset($data['error'])) cb_err('Claude error: ' . ($data['error']['message'] ?? json_encode($data['error'])), 502);
     $response_text = $data['content'][0]['text'] ?? '';
 
 } elseif ($backend === 'ollama') {
@@ -163,6 +177,7 @@ if ($backend === 'groq') {
     $res = curl_exec($ch);
     curl_close($ch);
     $data = json_decode($res, true);
+    if (isset($data['error'])) cb_err('Ollama error: ' . ($data['error'] ?? json_encode($data['error'])), 502);
     $response_text = $data['message']['content'] ?? '';
 } else {
     cb_err('Unknown backend: ' . $backend, 503);
