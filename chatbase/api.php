@@ -290,7 +290,7 @@ if ($action === 'crawl_pages') {
     $bot_id = isset($raw['bot_id']) ? $raw['bot_id'] : '';
     $urls   = isset($raw['urls'])   ? $raw['urls']   : array();
     if (!$bot_id || !$urls) api_err('bot_id and urls required');
-    if (count($urls) > 40)  api_err('Max 40 pages per crawl');
+    if (count($urls) > 500) api_err('Max 500 pages per crawl');
 
     $added  = 0;
     $failed = 0;
