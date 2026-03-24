@@ -94,11 +94,44 @@ if ($action === 'add_source') {
         if ($mime !== 'application/pdf') api_err('File must be a PDF');
 
         $tmp = $_FILES['file']['tmp_name'];
+
+        // Try pdftotext first
         $out = shell_exec('pdftotext -q ' . escapeshellarg($tmp) . ' - 2>/dev/null');
+
+        // Fallback: pure-PHP PDF text extractor
         if ($out === null || trim($out) === '') {
-            // Fallback: store a note that binary content was uploaded
-            api_err('pdftotext not available on this server. Install poppler-utils.');
+            $raw = file_get_contents($tmp);
+            $out = '';
+            // Extract text from PDF content streams
+            if (preg_match_all('/BT[\s\S]*?ET/', $raw, $blocks)) {
+                foreach ($blocks[0] as $block) {
+                    // Tj and TJ operators
+                    preg_match_all('/\(([^)\\\\]*(?:\\\\.[^)\\\\]*)*)\)\s*Tj/', $block, $m1);
+                    foreach ($m1[1] as $t) {
+                        $out .= stripcslashes($t) . ' ';
+                    }
+                    preg_match_all('/\[([^\]]*)\]\s*TJ/', $block, $m2);
+                    foreach ($m2[1] as $t) {
+                        preg_match_all('/\(([^)\\\\]*(?:\\\\.[^)\\\\]*)*)\)/', $t, $m3);
+                        foreach ($m3[1] as $w) {
+                            $out .= stripcslashes($w);
+                        }
+                        $out .= ' ';
+                    }
+                }
+            }
+            // Also extract plain text fragments
+            preg_match_all('/\(([^\x00-\x08\x0e-\x1f)\\\\]{4,})\)/', $raw, $mraw);
+            foreach ($mraw[1] as $t) {
+                $decoded = stripcslashes($t);
+                if (preg_match('/[\p{L}\p{N}]{3,}/u', $decoded)) {
+                    $out .= ' ' . $decoded;
+                }
+            }
+            $out = trim(preg_replace('/\s{2,}/', ' ', $out));
         }
+
+        if (trim($out) === '') api_err('No se pudo extraer texto del PDF. Comprueba que no sea un PDF escaneado (imagen).');
         $content = trim($out);
         if (mb_strlen($content) > 80000) $content = mb_substr($content, 0, 80000);
         if (!$name || $name === 'Nuevo PDF') $name = $_FILES['file']['name'];
