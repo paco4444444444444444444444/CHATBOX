@@ -97,7 +97,7 @@ if (file_exists($_config_file)) {
     $GEMINI_API_KEYS = [];
     $GROQ_API_KEY    = '';
 }
-$GEMINI_MODEL = 'gemini-1.5-flash'; // gemini-2.0-flash, gemini-1.5-flash-8b
+$GEMINI_MODEL = 'gemini-2.0-flash'; // gemini-2.0-flash-lite, gemini-1.5-flash
 $GROQ_MODEL   = 'llama-3.3-70b-versatile';
 
 // ── Claude / Anthropic (de pago, solo si lo necesitas) ────────────────────────
