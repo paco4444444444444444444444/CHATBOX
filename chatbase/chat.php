@@ -37,17 +37,43 @@ $src = cb_db()->prepare("SELECT type, name, content FROM sources WHERE bot_id=? 
 $src->execute([$bot_id]);
 $sources = $src->fetchAll();
 
-// Build knowledge block (limit to 60k chars to stay within LLM context)
+// ── RAG: score each source by relevance to the user's last question ──────
+$user_query = '';
+foreach (array_reverse($valid) as $m) {
+    if ($m['role'] === 'user') { $user_query = mb_strtolower($m['content']); break; }
+}
+
+function rag_score(string $query, array $source): int {
+    $haystack = mb_strtolower($source['name'] . ' ' . $source['content']);
+    // Exact words from query
+    $words = array_filter(preg_split('/\s+/', $query), fn($w) => mb_strlen($w) > 3);
+    $score = 0;
+    // Prioritize FAQs and PDFs — they are hand-crafted knowledge
+    if ($source['type'] === 'faq')  $score += 30;
+    if ($source['type'] === 'pdf')  $score += 20;
+    if ($source['type'] === 'text') $score += 10;
+    foreach ($words as $w) {
+        $score += substr_count($haystack, $w) * 2;
+        // Bonus if word appears in name/title
+        if (str_contains(mb_strtolower($source['name']), $w)) $score += 5;
+    }
+    return $score;
+}
+
+// Sort sources by relevance
+usort($sources, fn($a, $b) => rag_score($user_query, $b) <=> rag_score($user_query, $a));
+
+// Build knowledge block with top relevant sources (limit 60k chars)
 $knowledge = '';
 $knowledge_limit = 60000;
 $knowledge_used  = 0;
 foreach ($sources as $s) {
-    $label   = strtoupper($s['type']);
-    $chunk   = "\n\n=== {$label}: {$s['name']} ===\n{$s['content']}";
+    $label = strtoupper($s['type']);
+    $chunk = "\n\n=== {$label}: {$s['name']} ===\n{$s['content']}";
     $chunk_len = mb_strlen($chunk);
     if ($knowledge_used + $chunk_len > $knowledge_limit) {
         $remaining = $knowledge_limit - $knowledge_used;
-        if ($remaining > 200) {
+        if ($remaining > 500) {
             $knowledge .= mb_substr($chunk, 0, $remaining);
         }
         break;
