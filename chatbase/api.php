@@ -1,5 +1,10 @@
 <?php
 // chatbase/api.php — Bot config + source ingestion API
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+error_reporting(0);
+ob_start();
+
 require_once __DIR__ . '/db.php';
 
 header('Access-Control-Allow-Origin: *');
@@ -7,22 +12,36 @@ header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json; charset=utf-8');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { ob_end_clean(); http_response_code(204); exit; }
 
-function api_err(string $msg, int $code = 400): never {
+register_shutdown_function(function() {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR))) {
+        ob_end_clean();
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(array('error' => 'Server error: ' . $err['message']));
+    } else {
+        ob_end_flush();
+    }
+});
+
+function api_err($msg, $code = 400) {
+    ob_end_clean();
     http_response_code($code);
-    echo json_encode(['error' => $msg]);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(array('error' => $msg));
     exit;
 }
 
-$action = $_GET['action'] ?? '';
+$action = isset($_GET['action']) ? $_GET['action'] : '';
 
 // ── GET /api.php?action=config&bot=ID ─────────────────────────────────────
 if ($action === 'config') {
-    $id = $_GET['bot'] ?? '';
+    $id = isset($_GET['bot']) ? $_GET['bot'] : '';
     if (!$id) api_err('bot required');
     $s = cb_db()->prepare("SELECT name, welcome, placeholder, color FROM bots WHERE id=?");
-    $s->execute([$id]);
+    $s->execute(array($id));
     $bot = $s->fetch();
     if (!$bot) api_err('Bot not found', 404);
     echo json_encode($bot, JSON_UNESCAPED_UNICODE);
@@ -35,39 +54,39 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') api_err('Method not allowed', 405);
 // ── POST /api.php?action=delete_source ────────────────────────────────────
 if ($action === 'delete_source') {
     $raw = json_decode(file_get_contents('php://input'), true);
-    $sid = (int)($raw['id'] ?? 0);
+    $sid = (int)(isset($raw['id']) ? $raw['id'] : 0);
     if (!$sid) api_err('id required');
-    cb_db()->prepare("DELETE FROM sources WHERE id=?")->execute([$sid]);
-    echo json_encode(['ok' => true]);
+    cb_db()->prepare("DELETE FROM sources WHERE id=?")->execute(array($sid));
+    echo json_encode(array('ok' => true));
     exit;
 }
 
 // ── POST /api.php?action=add_source ───────────────────────────────────────
 if ($action === 'add_source') {
-    $bot_id = $_POST['bot_id'] ?? '';
-    $type   = $_POST['type']   ?? '';
-    $name   = trim($_POST['name'] ?? '');
+    $bot_id = isset($_POST['bot_id']) ? $_POST['bot_id'] : '';
+    $type   = isset($_POST['type'])   ? $_POST['type']   : '';
+    $name   = trim(isset($_POST['name']) ? $_POST['name'] : '');
 
     if (!$bot_id || !$type || !$name) api_err('bot_id, type and name required');
 
     $content = '';
 
     if ($type === 'text' || $type === 'faq') {
-        $content = trim($_POST['content'] ?? '');
+        $content = trim(isset($_POST['content']) ? $_POST['content'] : '');
         if (!$content) api_err('content required');
     }
 
     if ($type === 'url') {
-        $url = trim($_POST['url'] ?? '');
+        $url = trim(isset($_POST['url']) ? $_POST['url'] : '');
         if (!filter_var($url, FILTER_VALIDATE_URL)) api_err('Invalid URL');
         $ch = curl_init($url);
-        curl_setopt_array($ch, [
+        curl_setopt_array($ch, array(
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_USERAGENT      => 'ChatbaseBot/1.0',
             CURLOPT_SSL_VERIFYPEER => false,
-        ]);
+        ));
         $html = curl_exec($ch);
         curl_close($ch);
         if (!$html) api_err('Could not fetch URL');
@@ -76,14 +95,14 @@ if ($action === 'add_source') {
         $dom = new DOMDocument();
         @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
         // Remove scripts and styles
-        foreach (['script', 'style', 'nav', 'footer', 'header', 'noscript'] as $tag) {
-            foreach ($dom->getElementsByTagName($tag) as $node) {
-                $node->parentNode?->removeChild($node);
-            }
+        foreach (array('script', 'style', 'nav', 'footer', 'header', 'noscript') as $tag) {
+            $nodes = array();
+            foreach ($dom->getElementsByTagName($tag) as $node) { $nodes[] = $node; }
+            foreach ($nodes as $node) { if ($node->parentNode) $node->parentNode->removeChild($node); }
         }
         $content = trim(preg_replace('/\s{3,}/', "\n\n", $dom->textContent));
         if (mb_strlen($content) > 80000) $content = mb_substr($content, 0, 80000);
-        if (!$content) api_err('Could not extract text from URL');
+        if (!$content) api_err('No se pudo extraer texto de la URL');
     }
 
     if ($type === 'pdf') {
@@ -139,9 +158,9 @@ if ($action === 'add_source') {
 
     $chars = mb_strlen($content);
     cb_db()->prepare("INSERT INTO sources (bot_id,type,name,content,chars) VALUES (?,?,?,?,?)")
-        ->execute([$bot_id, $type, $name, $content, $chars]);
+        ->execute(array($bot_id, $type, $name, $content, $chars));
 
-    echo json_encode(['ok' => true, 'chars' => $chars], JSON_UNESCAPED_UNICODE);
+    echo json_encode(array('ok' => true, 'chars' => $chars), JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -149,39 +168,40 @@ if ($action === 'add_source') {
 if ($action === 'discover_site') {
     set_time_limit(120);
     $raw = json_decode(file_get_contents('php://input'), true);
-    $url = trim($raw['url'] ?? '');
+    $url = trim(isset($raw['url']) ? $raw['url'] : '');
     if (!filter_var($url, FILTER_VALIDATE_URL)) api_err('Invalid URL');
 
     // Helper closure: extract same-domain links from HTML
-    $extract_links = function(string $html, string $base, string $host): array {
+    $extract_links = function($html, $base, $host) {
         $dom = new DOMDocument();
         @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
         $skip = '/\.(jpg|jpeg|png|gif|pdf|zip|doc|xls|css|js|xml|ico|svg|woff|ttf|mp4|mp3|webp)(\?|$)/i';
-        $links = [];
+        $links = array();
         foreach ($dom->getElementsByTagName('a') as $a) {
             $href = trim($a->getAttribute('href'));
             if (!$href) continue;
-            $h0 = $href[0] ?? '';
+            $h0 = strlen($href) ? $href[0] : '';
             if ($h0 === '#') continue;
             if (strpos($href,'mailto:')===0 || strpos($href,'tel:')===0) continue;
             if ($h0 === '/') $href = $base . $href;
             elseif (strpos($href,'http') !== 0) continue;
             $href = strtok($href,'#');
             $hp = parse_url($href);
-            if (($hp['host'] ?? '') !== $host) continue;
+            if ((isset($hp['host']) ? $hp['host'] : '') !== $host) continue;
             if (preg_match($skip, $href)) continue;
             $text = trim($a->textContent);
-            if (!$text) $text = basename($hp['path'] ?? '') ?: $href;
+            $hp_path = isset($hp['path']) ? $hp['path'] : '';
+            if (!$text) $text = basename($hp_path) ? basename($hp_path) : $href;
             $links[$href] = mb_substr($text, 0, 80);
         }
         $tl = $dom->getElementsByTagName('title');
         $title = $tl->length ? trim($tl->item(0)->textContent) : '';
-        return ['links' => $links, 'title' => $title];
+        return array('links' => $links, 'title' => $title);
     };
 
     // Fetch root
     $ch = curl_init($url);
-    curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>12,CURLOPT_USERAGENT=>'ChatbaseBot/1.0',CURLOPT_SSL_VERIFYPEER=>false]);
+    curl_setopt_array($ch,array(CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>12,CURLOPT_USERAGENT=>'ChatbaseBot/1.0',CURLOPT_SSL_VERIFYPEER=>false));
     $html      = curl_exec($ch);
     $final_url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
     curl_close($ch);
@@ -192,32 +212,32 @@ if ($action === 'discover_site') {
     $host   = $parsed['host'];
 
     $r0      = $extract_links($html, $base, $host);
-    $seen    = [$final_url => true];
-    $pages   = [['url' => $final_url, 'text' => $r0['title'] ?: 'Página principal']];
+    $seen    = array($final_url => true);
+    $pages   = array(array('url' => $final_url, 'text' => $r0['title'] ? $r0['title'] : 'Pagina principal'));
 
     // Level-1 links
-    $l1_urls = [];
+    $l1_urls = array();
     foreach ($r0['links'] as $href => $text) {
         if (!isset($seen[$href])) {
             $seen[$href] = true;
-            $pages[]  = ['url' => $href, 'text' => $text];
+            $pages[]  = array('url' => $href, 'text' => $text);
             $l1_urls[] = $href;
         }
         if (count($l1_urls) >= 80) break;
     }
 
     // Helper: fetch a batch of URLs in parallel and return html results
-    $fetch_batch = function(array $urls): array {
+    $fetch_batch = function($urls) {
         $mh = curl_multi_init();
-        $handles = [];
+        $handles = array();
         foreach ($urls as $i => $u) {
             $c = curl_init($u);
-            curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>7,CURLOPT_USERAGENT=>'ChatbaseBot/1.0',CURLOPT_SSL_VERIFYPEER=>false]);
+            curl_setopt_array($c,array(CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>7,CURLOPT_USERAGENT=>'ChatbaseBot/1.0',CURLOPT_SSL_VERIFYPEER=>false));
             curl_multi_add_handle($mh,$c);
-            $handles[$i] = ['ch'=>$c,'url'=>$u];
+            $handles[$i] = array('ch'=>$c,'url'=>$u);
         }
         do { curl_multi_exec($mh,$running); curl_multi_select($mh,1); } while ($running>0);
-        $results = [];
+        $results = array();
         foreach ($handles as $i => $h) {
             $results[$h['url']] = curl_multi_getcontent($h['ch']);
             curl_multi_remove_handle($mh,$h['ch']); curl_close($h['ch']);
@@ -227,7 +247,7 @@ if ($action === 'discover_site') {
     };
 
     // Level-2: fetch level-1 pages in parallel, collect new links
-    $l2_urls = [];
+    $l2_urls = array();
     if (!empty($l1_urls)) {
         $bodies = $fetch_batch($l1_urls);
         foreach ($bodies as $body) {
@@ -236,7 +256,7 @@ if ($action === 'discover_site') {
             foreach ($r['links'] as $href => $text) {
                 if (!isset($seen[$href]) && count($pages) < 400) {
                     $seen[$href] = true;
-                    $pages[]  = ['url' => $href, 'text' => $text];
+                    $pages[]  = array('url' => $href, 'text' => $text);
                     $l2_urls[] = $href;
                 }
             }
@@ -245,7 +265,6 @@ if ($action === 'discover_site') {
 
     // Level-3: fetch level-2 pages in parallel to discover course-level pages
     if (!empty($l2_urls)) {
-        // Batch into groups of 30 to avoid memory issues
         foreach (array_chunk($l2_urls, 30) as $chunk) {
             $bodies = $fetch_batch($chunk);
             foreach ($bodies as $body) {
@@ -254,22 +273,22 @@ if ($action === 'discover_site') {
                 foreach ($r['links'] as $href => $text) {
                     if (!isset($seen[$href]) && count($pages) < 400) {
                         $seen[$href] = true;
-                        $pages[] = ['url' => $href, 'text' => $text];
+                        $pages[] = array('url' => $href, 'text' => $text);
                     }
                 }
             }
         }
     }
 
-    echo json_encode(['ok' => true, 'pages' => $pages], JSON_UNESCAPED_UNICODE);
+    echo json_encode(array('ok' => true, 'pages' => $pages), JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 // ── POST /api.php?action=crawl_pages ──────────────────────────────────────
 if ($action === 'crawl_pages') {
     $raw    = json_decode(file_get_contents('php://input'), true);
-    $bot_id = $raw['bot_id'] ?? '';
-    $urls   = $raw['urls']   ?? [];
+    $bot_id = isset($raw['bot_id']) ? $raw['bot_id'] : '';
+    $urls   = isset($raw['urls'])   ? $raw['urls']   : array();
     if (!$bot_id || !$urls) api_err('bot_id and urls required');
     if (count($urls) > 40)  api_err('Max 40 pages per crawl');
 
@@ -279,38 +298,38 @@ if ($action === 'crawl_pages') {
     $stmt = cb_db()->prepare("INSERT INTO sources (bot_id,type,name,content,chars) VALUES (?,?,?,?,?)");
 
     foreach ($urls as $item) {
-        $page_url  = $item['url']  ?? '';
-        $page_name = trim($item['name'] ?? '') ?: $page_url;
+        $page_url  = isset($item['url'])  ? $item['url']  : '';
+        $page_name_raw = trim(isset($item['name']) ? $item['name'] : '');
+        $page_name = $page_name_raw ? $page_name_raw : $page_url;
         if (!filter_var($page_url, FILTER_VALIDATE_URL)) { $failed++; continue; }
 
         $ch = curl_init($page_url);
-        curl_setopt_array($ch, [
+        curl_setopt_array($ch, array(
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT        => 12,
             CURLOPT_USERAGENT      => 'ChatbaseBot/1.0',
             CURLOPT_SSL_VERIFYPEER => false,
-        ]);
+        ));
         $html = curl_exec($ch);
         curl_close($ch);
         if (!$html) { $failed++; continue; }
 
         $dom = new DOMDocument();
         @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
-        foreach (['script','style','nav','footer','header','noscript'] as $tag) {
-            foreach (iterator_to_array($dom->getElementsByTagName($tag)) as $node) {
-                $node->parentNode?->removeChild($node);
-            }
+        foreach (array('script','style','nav','footer','header','noscript') as $tag) {
+            $nodes = iterator_to_array($dom->getElementsByTagName($tag));
+            foreach ($nodes as $node) { if ($node->parentNode) $node->parentNode->removeChild($node); }
         }
         $content = trim(preg_replace('/\s{3,}/', "\n\n", $dom->textContent));
         if (mb_strlen($content) > 80000) $content = mb_substr($content, 0, 80000);
         if (!$content) { $failed++; continue; }
 
-        $stmt->execute([$bot_id, 'url', mb_substr($page_name, 0, 120), $content, mb_strlen($content)]);
+        $stmt->execute(array($bot_id, 'url', mb_substr($page_name, 0, 120), $content, mb_strlen($content)));
         $added++;
     }
 
-    echo json_encode(['ok' => true, 'added' => $added, 'failed' => $failed], JSON_UNESCAPED_UNICODE);
+    echo json_encode(array('ok' => true, 'added' => $added, 'failed' => $failed), JSON_UNESCAPED_UNICODE);
     exit;
 }
 
