@@ -211,23 +211,31 @@ if ($p === 'settings') {
       <div class="card">
         <form method="post">
           <input type="hidden" name="action" value="save_settings">
-          <h3 style="margin-bottom:20px;font-size:16px">API Keys / LLM</h3>
-          <div class="grid-2">
-            <div class="field">
-              <label>Groq API Key</label>
-              <input type="password" name="groq_key" value="<?= h(cb_cfg('groq_key')) ?>" placeholder="gsk_...">
+          <h3 style="margin-bottom:4px;font-size:16px">API Keys / LLM</h3>
+
+          <!-- Groq multi-key -->
+          <div class="field" style="margin-top:16px">
+            <label>Groq API Keys <span style="font-weight:400;color:#64748b">(una por línea — se rotan automáticamente si una alcanza el límite)</span></label>
+            <textarea name="groq_key" rows="3" style="font-family:monospace;font-size:13px" placeholder="gsk_key1...&#10;gsk_key2...&#10;gsk_key3..."><?= h(cb_cfg('groq_key')) ?></textarea>
+            <div style="font-size:12px;color:#94a3b8;margin-top:4px">
+              💡 Cada cuenta gratuita da 14.400 req/día · 2 cuentas = 28.800/día · 3 cuentas = 43.200/día
             </div>
+          </div>
+
+          <div class="grid-2">
             <div class="field">
               <label>Claude (Anthropic) API Key</label>
               <input type="password" name="claude_key" value="<?= h(cb_cfg('claude_key')) ?>" placeholder="sk-ant-...">
             </div>
-            <div class="field">
-              <label>Ollama URL</label>
-              <input type="text" name="ollama_url" value="<?= h(cb_cfg('ollama_url')) ?>" placeholder="http://localhost:11434">
-            </div>
-            <div class="field">
-              <label>Ollama Modelo</label>
-              <input type="text" name="ollama_model" value="<?= h(cb_cfg('ollama_model')) ?>" placeholder="qwen2.5:7b">
+            <div class="field" style="display:flex;gap:12px">
+              <div style="flex:1">
+                <label>Ollama URL</label>
+                <input type="text" name="ollama_url" value="<?= h(cb_cfg('ollama_url')) ?>" placeholder="http://localhost:11434">
+              </div>
+              <div style="flex:1">
+                <label>Ollama Modelo</label>
+                <input type="text" name="ollama_model" value="<?= h(cb_cfg('ollama_model')) ?>" placeholder="qwen2.5:7b">
+              </div>
             </div>
           </div>
           <hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0">

@@ -79,31 +79,44 @@ $bot_model = $bot['model'] ?? '';
 $response_text = '';
 
 if ($backend === 'groq') {
-    $key = cb_cfg('groq_key');
-    if (!$key) cb_err('Groq API key not configured', 503);
+    // Support multiple keys separated by commas or newlines → rotate on 429
+    $raw_keys = cb_cfg('groq_key');
+    $keys = array_values(array_filter(array_map('trim', preg_split('/[\n,]+/', $raw_keys))));
+    if (!$keys) cb_err('Groq API key not configured', 503);
 
     $payload = [
-        'model'    => $bot_model ?: 'llama-3.3-70b-versatile',
-        'messages' => array_merge(
-            [['role' => 'system', 'content' => $system]],
-            $valid
-        ),
+        'model'      => $bot_model ?: 'llama-3.3-70b-versatile',
+        'messages'   => array_merge([['role' => 'system', 'content' => $system]], $valid),
         'max_tokens' => 1024,
     ];
-    $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => json_encode($payload),
-        CURLOPT_HTTPHEADER     => [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $key,
-        ],
-        CURLOPT_TIMEOUT => 60,
-    ]);
-    $res = curl_exec($ch);
-    curl_close($ch);
-    $data = json_decode($res, true);
+
+    $data = null;
+    $last_error = '';
+    foreach ($keys as $key) {
+        $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $key,
+            ],
+            CURLOPT_TIMEOUT => 60,
+        ]);
+        $res  = curl_exec($ch);
+        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $data = json_decode($res, true);
+        if ($http === 429) {
+            // Rate limited — try next key
+            $last_error = 'rate_limit';
+            $data = null;
+            continue;
+        }
+        break; // success or non-429 error
+    }
+    if ($data === null) cb_err('Todas las API keys de Groq han alcanzado el límite. Inténtalo en unos minutos.', 429);
     $response_text = $data['choices'][0]['message']['content'] ?? '';
 
 } elseif ($backend === 'claude') {
