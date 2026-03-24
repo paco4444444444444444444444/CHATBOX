@@ -14,8 +14,8 @@
 
   var BASE_URL   = (window.CHATBASE_URL    || '').replace(/\/$/, '');
   var BOT_ID     = window.CHATBASE_BOT_ID  || '';
-  var MAX_HIST   = 10;
-  var TIMEOUT_MS = 90000;
+  var MAX_HIST   = 100;
+  var TIMEOUT_MS = 300000;
 
   if (!BASE_URL || !BOT_ID) { console.warn('Chatbase: CHATBASE_URL and CHATBASE_BOT_ID required'); return; }
 

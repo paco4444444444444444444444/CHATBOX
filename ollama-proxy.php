@@ -198,8 +198,8 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 // Validar campos básicos
 $messages      = $body['messages']      ?? [];
 $system_prompt = $body['system']        ?? '';
-$max_tokens    = (int)($body['max_tokens'] ?? 800);
-$max_tokens    = max(100, min($max_tokens, 2000));
+$max_tokens    = (int)($body['max_tokens'] ?? 8192);
+$max_tokens    = max(100, min($max_tokens, 32768));
 
 if (empty($messages) || !is_array($messages)) {
     http_response_code(400);
@@ -1207,7 +1207,7 @@ function callOllama($system_prompt, $clean_messages, $max_tokens) {
     $payload = [
         'model'    => $OLLAMA_MODEL,
         'stream'   => false,
-        'options'  => ['num_predict' => $max_tokens, 'temperature' => 0.1, 'num_ctx' => 8192],
+        'options'  => ['num_predict' => $max_tokens, 'temperature' => 0.1, 'num_ctx' => 131072],
         'messages' => array_merge(
             $system_prompt ? [['role' => 'system', 'content' => $system_prompt]] : [],
             $clean_messages

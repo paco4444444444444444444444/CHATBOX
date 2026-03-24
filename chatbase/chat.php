@@ -100,11 +100,9 @@ usort($sources, function($a, $b) use ($uq) {
     return rag_score($uq, $b) - rag_score($uq, $a);
 });
 
-// Build knowledge block
-// Groq free tier: ~12k TPM total; reservamos ~2k para respuesta+historial → ~8k tokens ≈ 24k chars
-// Otros backends: hasta 60k chars
+// Build knowledge block — sin límite artificial, máximo posible
 $knowledge       = '';
-$knowledge_limit = ($bot['backend'] === 'groq') ? 24000 : 60000;
+$knowledge_limit = 400000;
 $knowledge_used  = 0;
 foreach ($sources as $src_item) {
     $label     = strtoupper($src_item['type']);
@@ -155,7 +153,7 @@ if ($backend === 'groq') {
     $payload = array(
         'model'      => $bot_model ? $bot_model : 'llama-3.3-70b-versatile',
         'messages'   => $messages,
-        'max_tokens' => 1024,
+        'max_tokens' => 32768,
     );
 
     $data = null;
@@ -169,7 +167,7 @@ if ($backend === 'groq') {
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . $key,
             ),
-            CURLOPT_TIMEOUT => 60,
+            CURLOPT_TIMEOUT => 120,
         ));
         $res  = curl_exec($ch);
         $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -189,7 +187,7 @@ if ($backend === 'groq') {
 
     $payload = array(
         'model'      => $bot_model ? $bot_model : 'claude-haiku-4-5-20251001',
-        'max_tokens' => 1024,
+        'max_tokens' => 8192,
         'system'     => $system,
         'messages'   => $valid,
     );
@@ -203,7 +201,7 @@ if ($backend === 'groq') {
             'x-api-key: ' . $key,
             'anthropic-version: 2023-06-01',
         ),
-        CURLOPT_TIMEOUT => 60,
+        CURLOPT_TIMEOUT => 120,
     ));
     $res = curl_exec($ch);
     curl_close($ch);

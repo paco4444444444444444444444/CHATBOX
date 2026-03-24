@@ -43,8 +43,8 @@
   var API_KEY     = (typeof window !== 'undefined' && window.FEVAL_CHATBOT_API_KEY)   || '';
   var CLAUDE_URL  = 'https://api.anthropic.com/v1/messages';
   var CLAUDE_MODEL = 'claude-sonnet-4-20250514';
-  var MAX_HISTORY = 10; // pares de mensajes a mantener en contexto
-  var REQUEST_TIMEOUT_MS = 120000; // 120s (qwen2.5:14b puede tardar al cargar)
+  var MAX_HISTORY = 100; // pares de mensajes a mantener en contexto
+  var REQUEST_TIMEOUT_MS = 300000; // 300s (5min para modelos grandes)
 
   var SYSTEM_PROMPT = [
     'Eres el asistente virtual oficial de FEVAL Formación, la plataforma de formación TIC gratuita de la Institución Ferial de Extremadura. Tu nombre es "Asistente FEVAL".',
@@ -608,7 +608,7 @@
       fetchBody = JSON.stringify({
         system: SYSTEM_PROMPT,
         messages: conversationHistory,
-        max_tokens: 800
+        max_tokens: 8192
       });
     } else {
       // ── Claude directo desde browser ──────────────────────────────────────
@@ -621,7 +621,7 @@
       };
       fetchBody = JSON.stringify({
         model: CLAUDE_MODEL,
-        max_tokens: 1000,
+        max_tokens: 8192,
         system: SYSTEM_PROMPT,
         messages: conversationHistory
       });
