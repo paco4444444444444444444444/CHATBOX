@@ -390,12 +390,12 @@ if ($p === 'bot') {
 
           <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
             <button type="submit" class="btn btn-primary">Guardar cambios</button>
-            <form method="post" style="margin:0" onsubmit="return confirm('¿Eliminar bot y todos sus datos?')">
-              <input type="hidden" name="action" value="delete_bot">
-              <input type="hidden" name="bot_id" value="<?= h($bot_id) ?>">
-              <button type="submit" class="btn btn-danger btn-sm">Eliminar bot</button>
-            </form>
           </div>
+        </form>
+        <form method="post" style="margin:8px 0 0 0" onsubmit="return confirm('¿Eliminar bot y todos sus datos?')">
+          <input type="hidden" name="action" value="delete_bot">
+          <input type="hidden" name="bot_id" value="<?= h($bot_id) ?>">
+          <button type="submit" class="btn btn-danger btn-sm">Eliminar bot</button>
         </form>
       </div>
 
