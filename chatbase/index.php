@@ -460,6 +460,7 @@ function applyTemplate(key) {
           <span class="tab" onclick="showSrcTab('faq',this)">FAQ</span>
           <span class="tab" onclick="showSrcTab('url',this)">URL</span>
           <span class="tab" onclick="showSrcTab('pdf',this)">PDF</span>
+          <span class="tab" onclick="showSrcTab('site',this)">🌐 Sitio web</span>
         </div>
 
         <!-- TEXT -->
@@ -502,6 +503,33 @@ function applyTemplate(key) {
           <div class="field"><label>Nombre</label><input type="text" id="pdf-name" placeholder="Manual de usuario"></div>
           <button class="btn btn-primary" onclick="uploadPDF('<?= h($bot_id) ?>')">Subir PDF</button>
           <span id="pdf-status" style="font-size:13px;color:#64748b;margin-left:12px"></span>
+        </div>
+
+        <!-- SITIO WEB -->
+        <div id="src-site" style="display:none">
+          <p style="font-size:13px;color:#64748b;margin-bottom:14px">Introduce la URL raíz de tu sitio y descubriremos automáticamente todas las páginas enlazadas.</p>
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <div class="field" style="flex:1;min-width:260px;margin-bottom:0">
+              <label>URL del sitio web</label>
+              <input type="url" id="site-url" placeholder="https://ejemplo.com">
+            </div>
+            <button class="btn btn-primary" onclick="discoverSite('<?= h($bot_id) ?>')">🔍 Descubrir páginas</button>
+            <span id="site-status" style="font-size:13px;color:#64748b;align-self:center"></span>
+          </div>
+          <div id="site-pages" style="display:none;margin-top:18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <label style="font-weight:600;font-size:14px" id="site-count"></label>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-ghost btn-sm" onclick="toggleAllPages(true)">Seleccionar todas</button>
+                <button class="btn btn-ghost btn-sm" onclick="toggleAllPages(false)">Ninguna</button>
+              </div>
+            </div>
+            <div id="site-list" style="max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:6px"></div>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+              <button class="btn btn-primary" onclick="crawlSelected('<?= h($bot_id) ?>')">⬇ Importar seleccionadas</button>
+              <span id="crawl-progress" style="font-size:13px;color:#64748b"></span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -562,11 +590,71 @@ window.CHATBASE_BOT_ID = \'' . $bot_id . '\';
 
 <script>
 function showSrcTab(type, el) {
-  ['text','faq','url','pdf'].forEach(t => {
+  ['text','faq','url','pdf','site'].forEach(t => {
     document.getElementById('src-' + t).style.display = t === type ? '' : 'none';
   });
   document.querySelectorAll('#src-tabs .tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
+}
+function discoverSite(botId) {
+  var url = document.getElementById('site-url').value.trim();
+  if (!url) { alert('Introduce una URL'); return; }
+  var st = document.getElementById('site-status');
+  st.textContent = 'Descubriendo...';
+  document.getElementById('site-pages').style.display = 'none';
+  fetch('api.php?action=discover_site', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({url: url})
+  }).then(r => r.json()).then(d => {
+    if (!d.ok) { st.textContent = '✗ ' + (d.error || 'Error'); return; }
+    st.textContent = '';
+    document.getElementById('site-count').textContent = d.pages.length + ' páginas encontradas';
+    var list = document.getElementById('site-list');
+    list.innerHTML = '';
+    d.pages.forEach(function(p) {
+      var row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;border-radius:4px;font-size:13px;transition:background .1s';
+      row.onmouseover = function(){ this.style.background='#f8fafc'; };
+      row.onmouseout  = function(){ this.style.background=''; };
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = true;
+      cb.dataset.url  = p.url;
+      cb.dataset.name = p.text || p.url;
+      var txt = document.createElement('span');
+      txt.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      txt.title = p.url;
+      txt.textContent = p.text || p.url;
+      var path = document.createElement('span');
+      path.style.cssText = 'color:#94a3b8;font-size:11px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis';
+      path.textContent = p.url.replace(/^https?:\/\/[^\/]+/, '') || '/';
+      row.appendChild(cb); row.appendChild(txt); row.appendChild(path);
+      list.appendChild(row);
+    });
+    document.getElementById('site-pages').style.display = '';
+  }).catch(function() { st.textContent = '✗ Error de red'; });
+}
+function toggleAllPages(checked) {
+  document.querySelectorAll('#site-list input[type=checkbox]').forEach(function(cb){ cb.checked = checked; });
+}
+function crawlSelected(botId) {
+  var checked = Array.from(document.querySelectorAll('#site-list input[type=checkbox]:checked'));
+  if (!checked.length) { alert('Selecciona al menos una página'); return; }
+  var urls = checked.map(function(cb){ return {url: cb.dataset.url, name: cb.dataset.name}; });
+  var prog = document.getElementById('crawl-progress');
+  prog.textContent = 'Importando ' + urls.length + ' página' + (urls.length>1?'s':'') + '...';
+  fetch('api.php?action=crawl_pages', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({bot_id: botId, urls: urls})
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      prog.textContent = '✓ ' + d.added + ' importadas' + (d.failed ? ', ' + d.failed + ' fallidas' : '');
+      setTimeout(function(){ location.reload(); }, 1500);
+    } else {
+      prog.textContent = '✗ ' + (d.error || 'Error');
+    }
+  }).catch(function(){ prog.textContent = '✗ Error de red'; });
 }
 function copyEmbed() {
   var t = document.getElementById('embed-code');

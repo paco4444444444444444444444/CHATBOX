@@ -112,4 +112,117 @@ if ($action === 'add_source') {
     exit;
 }
 
+// ── POST /api.php?action=discover_site ────────────────────────────────────
+if ($action === 'discover_site') {
+    $raw = json_decode(file_get_contents('php://input'), true);
+    $url = trim($raw['url'] ?? '');
+    if (!filter_var($url, FILTER_VALIDATE_URL)) api_err('Invalid URL');
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_USERAGENT      => 'ChatbaseBot/1.0',
+        CURLOPT_SSL_VERIFYPEER => false,
+    ]);
+    $html      = curl_exec($ch);
+    $final_url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+    curl_close($ch);
+    if (!$html) api_err('Could not fetch URL');
+
+    $parsed = parse_url($final_url);
+    $base   = $parsed['scheme'] . '://' . $parsed['host'];
+
+    $dom = new DOMDocument();
+    @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+
+    $pages = [];
+    $seen  = [$final_url => true];
+
+    // Root page first
+    $title_nodes = $dom->getElementsByTagName('title');
+    $root_title  = $title_nodes->length ? trim($title_nodes->item(0)->textContent) : 'Página principal';
+    $pages[]     = ['url' => $final_url, 'text' => $root_title ?: 'Página principal'];
+
+    foreach ($dom->getElementsByTagName('a') as $a) {
+        $href = trim($a->getAttribute('href'));
+        if (!$href || str_starts_with($href, '#') || str_starts_with($href, 'mailto:') || str_starts_with($href, 'tel:')) continue;
+
+        if (str_starts_with($href, '/')) {
+            $href = $base . $href;
+        } elseif (!str_starts_with($href, 'http')) {
+            continue;
+        }
+
+        // Strip fragment
+        $href = strtok($href, '#');
+
+        $h_parsed = parse_url($href);
+        if (($h_parsed['host'] ?? '') !== $parsed['host']) continue;
+
+        // Skip non-HTML resources
+        if (preg_match('/\.(jpg|jpeg|png|gif|pdf|zip|doc|xls|css|js|xml|ico|svg|woff|ttf|mp4|mp3|webp)(\?|$)/i', $href)) continue;
+
+        if (!isset($seen[$href])) {
+            $seen[$href] = true;
+            $text = trim($a->textContent) ?: basename(parse_url($href, PHP_URL_PATH)) ?: $href;
+            $pages[] = ['url' => $href, 'text' => mb_substr($text, 0, 80)];
+        }
+        if (count($pages) >= 60) break;
+    }
+
+    echo json_encode(['ok' => true, 'pages' => $pages], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ── POST /api.php?action=crawl_pages ──────────────────────────────────────
+if ($action === 'crawl_pages') {
+    $raw    = json_decode(file_get_contents('php://input'), true);
+    $bot_id = $raw['bot_id'] ?? '';
+    $urls   = $raw['urls']   ?? [];
+    if (!$bot_id || !$urls) api_err('bot_id and urls required');
+    if (count($urls) > 40)  api_err('Max 40 pages per crawl');
+
+    $added  = 0;
+    $failed = 0;
+
+    $stmt = cb_db()->prepare("INSERT INTO sources (bot_id,type,name,content,chars) VALUES (?,?,?,?,?)");
+
+    foreach ($urls as $item) {
+        $page_url  = $item['url']  ?? '';
+        $page_name = trim($item['name'] ?? '') ?: $page_url;
+        if (!filter_var($page_url, FILTER_VALIDATE_URL)) { $failed++; continue; }
+
+        $ch = curl_init($page_url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT        => 12,
+            CURLOPT_USERAGENT      => 'ChatbaseBot/1.0',
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
+        $html = curl_exec($ch);
+        curl_close($ch);
+        if (!$html) { $failed++; continue; }
+
+        $dom = new DOMDocument();
+        @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+        foreach (['script','style','nav','footer','header','noscript'] as $tag) {
+            foreach (iterator_to_array($dom->getElementsByTagName($tag)) as $node) {
+                $node->parentNode?->removeChild($node);
+            }
+        }
+        $content = trim(preg_replace('/\s{3,}/', "\n\n", $dom->textContent));
+        if (mb_strlen($content) > 80000) $content = mb_substr($content, 0, 80000);
+        if (!$content) { $failed++; continue; }
+
+        $stmt->execute([$bot_id, 'url', mb_substr($page_name, 0, 120), $content, mb_strlen($content)]);
+        $added++;
+    }
+
+    echo json_encode(['ok' => true, 'added' => $added, 'failed' => $failed], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 api_err('Unknown action');
