@@ -114,18 +114,36 @@ if ($action === 'add_source') {
 
 // ── POST /api.php?action=discover_site ────────────────────────────────────
 if ($action === 'discover_site') {
+    set_time_limit(120);
     $raw = json_decode(file_get_contents('php://input'), true);
     $url = trim($raw['url'] ?? '');
     if (!filter_var($url, FILTER_VALIDATE_URL)) api_err('Invalid URL');
 
+    // Helper: extract same-domain links from HTML
+    function extract_links(string $html, string $base, string $host): array {
+        $dom = new DOMDocument();
+        @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+        $skip = '/\.(jpg|jpeg|png|gif|pdf|zip|doc|xls|css|js|xml|ico|svg|woff|ttf|mp4|mp3|webp)(\?|$)/i';
+        $links = [];
+        foreach ($dom->getElementsByTagName('a') as $a) {
+            $href = trim($a->getAttribute('href'));
+            if (!$href || str_starts_with($href,'#') || str_starts_with($href,'mailto:') || str_starts_with($href,'tel:')) continue;
+            if (str_starts_with($href,'/')) $href = $base . $href;
+            elseif (!str_starts_with($href,'http')) continue;
+            $href = strtok($href,'#');
+            if ((parse_url($href,'host') ?? '') !== $host) continue;
+            if (preg_match($skip, $href)) continue;
+            $text = trim($a->textContent) ?: basename(parse_url($href, PHP_URL_PATH)) ?: $href;
+            $links[$href] = mb_substr($text, 0, 80);
+        }
+        $tl = $dom->getElementsByTagName('title');
+        $title = $tl->length ? trim($tl->item(0)->textContent) : '';
+        return ['links' => $links, 'title' => $title];
+    }
+
+    // Fetch root
     $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_TIMEOUT        => 15,
-        CURLOPT_USERAGENT      => 'ChatbaseBot/1.0',
-        CURLOPT_SSL_VERIFYPEER => false,
-    ]);
+    curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>12,CURLOPT_USERAGENT=>'ChatbaseBot/1.0',CURLOPT_SSL_VERIFYPEER=>false]);
     $html      = curl_exec($ch);
     $final_url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
     curl_close($ch);
@@ -133,43 +151,47 @@ if ($action === 'discover_site') {
 
     $parsed = parse_url($final_url);
     $base   = $parsed['scheme'] . '://' . $parsed['host'];
+    $host   = $parsed['host'];
 
-    $dom = new DOMDocument();
-    @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+    $r0      = extract_links($html, $base, $host);
+    $seen    = [$final_url => true];
+    $pages   = [['url' => $final_url, 'text' => $r0['title'] ?: 'Página principal']];
 
-    $pages = [];
-    $seen  = [$final_url => true];
-
-    // Root page first
-    $title_nodes = $dom->getElementsByTagName('title');
-    $root_title  = $title_nodes->length ? trim($title_nodes->item(0)->textContent) : 'Página principal';
-    $pages[]     = ['url' => $final_url, 'text' => $root_title ?: 'Página principal'];
-
-    foreach ($dom->getElementsByTagName('a') as $a) {
-        $href = trim($a->getAttribute('href'));
-        if (!$href || str_starts_with($href, '#') || str_starts_with($href, 'mailto:') || str_starts_with($href, 'tel:')) continue;
-
-        if (str_starts_with($href, '/')) {
-            $href = $base . $href;
-        } elseif (!str_starts_with($href, 'http')) {
-            continue;
-        }
-
-        // Strip fragment
-        $href = strtok($href, '#');
-
-        $h_parsed = parse_url($href);
-        if (($h_parsed['host'] ?? '') !== $parsed['host']) continue;
-
-        // Skip non-HTML resources
-        if (preg_match('/\.(jpg|jpeg|png|gif|pdf|zip|doc|xls|css|js|xml|ico|svg|woff|ttf|mp4|mp3|webp)(\?|$)/i', $href)) continue;
-
+    // Level-1 links
+    $l1_urls = [];
+    foreach ($r0['links'] as $href => $text) {
         if (!isset($seen[$href])) {
             $seen[$href] = true;
-            $text = trim($a->textContent) ?: basename(parse_url($href, PHP_URL_PATH)) ?: $href;
-            $pages[] = ['url' => $href, 'text' => mb_substr($text, 0, 80)];
+            $pages[]  = ['url' => $href, 'text' => $text];
+            $l1_urls[] = $href;
         }
-        if (count($pages) >= 60) break;
+        if (count($l1_urls) >= 80) break;
+    }
+
+    // Level-2: fetch all level-1 pages in parallel
+    if (!empty($l1_urls)) {
+        $mh = curl_multi_init();
+        $handles = [];
+        foreach ($l1_urls as $i => $u) {
+            $c = curl_init($u);
+            curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>7,CURLOPT_USERAGENT=>'ChatbaseBot/1.0',CURLOPT_SSL_VERIFYPEER=>false]);
+            curl_multi_add_handle($mh,$c);
+            $handles[$i] = $c;
+        }
+        do { curl_multi_exec($mh,$running); curl_multi_select($mh,1); } while ($running>0);
+        foreach ($handles as $c) {
+            $body = curl_multi_getcontent($c);
+            curl_multi_remove_handle($mh,$c); curl_close($c);
+            if (!$body) continue;
+            $r = extract_links($body, $base, $host);
+            foreach ($r['links'] as $href => $text) {
+                if (!isset($seen[$href]) && count($pages) < 300) {
+                    $seen[$href] = true;
+                    $pages[] = ['url' => $href, 'text' => $text];
+                }
+            }
+        }
+        curl_multi_close($mh);
     }
 
     echo json_encode(['ok' => true, 'pages' => $pages], JSON_UNESCAPED_UNICODE);
