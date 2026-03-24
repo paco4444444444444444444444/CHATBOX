@@ -157,6 +157,7 @@ if ($backend === 'groq') {
     if ($data === null) cb_err('Todas las API keys de Groq han alcanzado el límite. Inténtalo en unos minutos.', 429);
     if (isset($data['error'])) cb_err('Groq error: ' . ($data['error']['message'] ?? json_encode($data['error'])), 502);
     $response_text = $data['choices'][0]['message']['content'] ?? '';
+    if (!$response_text) cb_err('Groq respuesta vacía. Respuesta completa: ' . json_encode($data), 502);
 
 } elseif ($backend === 'claude') {
     $key = cb_cfg('claude_key');
@@ -185,6 +186,7 @@ if ($backend === 'groq') {
     $data = json_decode($res, true);
     if (isset($data['error'])) cb_err('Claude error: ' . ($data['error']['message'] ?? json_encode($data['error'])), 502);
     $response_text = $data['content'][0]['text'] ?? '';
+    if (!$response_text) cb_err('Claude respuesta vacía. Respuesta completa: ' . json_encode($data), 502);
 
 } elseif ($backend === 'ollama') {
     $ollama_url = rtrim(cb_cfg('ollama_url'), '/');
