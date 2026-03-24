@@ -1,0 +1,3 @@
+config.php
+chatbase/chatbase.sqlite
+chatbase/*.sqlite

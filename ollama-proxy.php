@@ -88,22 +88,17 @@ $OLLAMA_PORT  = 11434;
 //   mistral:7b        → alternativa rápida y equilibrada
 $OLLAMA_MODEL = 'qwen2.5:7b';
 
-// ── Gemini Flash — Principal nube gratuita (1M tokens de contexto!) ──────────
-// Registro gratis en: aistudio.google.com → Get API Key
-// Puedes poner múltiples keys separadas por coma para rotación automática
-$GEMINI_API_KEYS = [
-    'AIzaSy_REMOVED',
-    'AIzaSy_REMOVED',
-    'AIzaSy_REMOVED',
-    'AIzaSy_REMOVED',
-];
-$GEMINI_MODEL    = 'gemini-1.5-flash';       // gemini-2.0-flash, gemini-1.5-flash-8b
-
-// ── Groq — Fallback gratuito (sin GPU necesaria) ──────────────────────────────
-// Registro gratis en: https://console.groq.com → API Keys → Create API Key
-// Pega aquí tu API key (empieza por gsk_...)
-$GROQ_API_KEY = 'gsk_REMOVED';
-$GROQ_MODEL   = 'llama-3.3-70b-versatile'; // Gratis, muy potente, < 1s respuesta
+// ── Claves API — se cargan desde config.php (NO está en git) ─────────────────
+// Copia config.example.php → config.php y pon tus claves reales
+$_config_file = __DIR__ . '/config.php';
+if (file_exists($_config_file)) {
+    require $_config_file;
+} else {
+    $GEMINI_API_KEYS = [];
+    $GROQ_API_KEY    = '';
+}
+$GEMINI_MODEL = 'gemini-1.5-flash'; // gemini-2.0-flash, gemini-1.5-flash-8b
+$GROQ_MODEL   = 'llama-3.3-70b-versatile';
 
 // ── Claude / Anthropic (de pago, solo si lo necesitas) ────────────────────────
 $CLAUDE_API_KEY = 'sk-ant-TU_API_KEY_AQUI';
