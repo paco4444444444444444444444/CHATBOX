@@ -173,30 +173,59 @@ if ($action === 'discover_site') {
         if (count($l1_urls) >= 80) break;
     }
 
-    // Level-2: fetch all level-1 pages in parallel
-    if (!empty($l1_urls)) {
+    // Helper: fetch a batch of URLs in parallel and return html results
+    $fetch_batch = function(array $urls): array {
         $mh = curl_multi_init();
         $handles = [];
-        foreach ($l1_urls as $i => $u) {
+        foreach ($urls as $i => $u) {
             $c = curl_init($u);
             curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>7,CURLOPT_USERAGENT=>'ChatbaseBot/1.0',CURLOPT_SSL_VERIFYPEER=>false]);
             curl_multi_add_handle($mh,$c);
-            $handles[$i] = $c;
+            $handles[$i] = ['ch'=>$c,'url'=>$u];
         }
         do { curl_multi_exec($mh,$running); curl_multi_select($mh,1); } while ($running>0);
-        foreach ($handles as $c) {
-            $body = curl_multi_getcontent($c);
-            curl_multi_remove_handle($mh,$c); curl_close($c);
+        $results = [];
+        foreach ($handles as $i => $h) {
+            $results[$h['url']] = curl_multi_getcontent($h['ch']);
+            curl_multi_remove_handle($mh,$h['ch']); curl_close($h['ch']);
+        }
+        curl_multi_close($mh);
+        return $results;
+    };
+
+    // Level-2: fetch level-1 pages in parallel, collect new links
+    $l2_urls = [];
+    if (!empty($l1_urls)) {
+        $bodies = $fetch_batch($l1_urls);
+        foreach ($bodies as $body) {
             if (!$body) continue;
             $r = $extract_links($body, $base, $host);
             foreach ($r['links'] as $href => $text) {
-                if (!isset($seen[$href]) && count($pages) < 300) {
+                if (!isset($seen[$href]) && count($pages) < 400) {
                     $seen[$href] = true;
-                    $pages[] = ['url' => $href, 'text' => $text];
+                    $pages[]  = ['url' => $href, 'text' => $text];
+                    $l2_urls[] = $href;
                 }
             }
         }
-        curl_multi_close($mh);
+    }
+
+    // Level-3: fetch level-2 pages in parallel to discover course-level pages
+    if (!empty($l2_urls)) {
+        // Batch into groups of 30 to avoid memory issues
+        foreach (array_chunk($l2_urls, 30) as $chunk) {
+            $bodies = $fetch_batch($chunk);
+            foreach ($bodies as $body) {
+                if (!$body) continue;
+                $r = $extract_links($body, $base, $host);
+                foreach ($r['links'] as $href => $text) {
+                    if (!isset($seen[$href]) && count($pages) < 400) {
+                        $seen[$href] = true;
+                        $pages[] = ['url' => $href, 'text' => $text];
+                    }
+                }
+            }
+        }
     }
 
     echo json_encode(['ok' => true, 'pages' => $pages], JSON_UNESCAPED_UNICODE);
