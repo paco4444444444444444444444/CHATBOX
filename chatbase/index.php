@@ -552,7 +552,7 @@ window.CHATBASE_BOT_ID = \'' . $bot_id . '\';
         window.CHATBASE_URL    = '<?= h($base) ?>';
         window.CHATBASE_BOT_ID = '<?= h($bot_id) ?>';
         </script>
-        <script src="<?= h($base) ?>/widget.js"></script>
+        <script src="<?= h($base) ?>/widget.js?v=<?= filemtime(__DIR__.'/widget.js') ?>"></script>
       </div>
 
       <?php elseif ($tab === 'logs'): ?>

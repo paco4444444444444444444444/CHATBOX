@@ -43,25 +43,29 @@ foreach (array_reverse($valid) as $m) {
     if ($m['role'] === 'user') { $user_query = mb_strtolower($m['content']); break; }
 }
 
-function rag_score(string $query, array $source): int {
+function rag_score($query, $source) {
     $haystack = mb_strtolower($source['name'] . ' ' . $source['content']);
-    // Exact words from query
-    $words = array_filter(preg_split('/\s+/', $query), fn($w) => mb_strlen($w) > 3);
+    $all_words = preg_split('/\s+/', $query);
+    $words = array();
+    foreach ($all_words as $w) {
+        if (mb_strlen($w) > 3) $words[] = $w;
+    }
     $score = 0;
-    // Prioritize FAQs and PDFs — they are hand-crafted knowledge
     if ($source['type'] === 'faq')  $score += 30;
     if ($source['type'] === 'pdf')  $score += 20;
     if ($source['type'] === 'text') $score += 10;
     foreach ($words as $w) {
         $score += substr_count($haystack, $w) * 2;
-        // Bonus if word appears in name/title
-        if (str_contains(mb_strtolower($source['name']), $w)) $score += 5;
+        if (mb_strpos(mb_strtolower($source['name']), $w) !== false) $score += 5;
     }
     return $score;
 }
 
 // Sort sources by relevance
-usort($sources, fn($a, $b) => rag_score($user_query, $b) <=> rag_score($user_query, $a));
+$user_query_ref = $user_query;
+usort($sources, function($a, $b) use ($user_query_ref) {
+    return rag_score($user_query_ref, $b) - rag_score($user_query_ref, $a);
+});
 
 // Build knowledge block with top relevant sources (limit 60k chars)
 $knowledge = '';
