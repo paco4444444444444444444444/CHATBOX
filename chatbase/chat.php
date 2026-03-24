@@ -100,9 +100,11 @@ usort($sources, function($a, $b) use ($uq) {
     return rag_score($uq, $b) - rag_score($uq, $a);
 });
 
-// Build knowledge block (top relevant sources, max 60k chars)
+// Build knowledge block
+// Groq free tier: ~12k TPM total; reservamos ~2k para respuesta+historial → ~8k tokens ≈ 24k chars
+// Otros backends: hasta 60k chars
 $knowledge       = '';
-$knowledge_limit = 60000;
+$knowledge_limit = ($bot['backend'] === 'groq') ? 24000 : 60000;
 $knowledge_used  = 0;
 foreach ($sources as $src_item) {
     $label     = strtoupper($src_item['type']);
@@ -153,7 +155,7 @@ if ($backend === 'groq') {
     $payload = array(
         'model'      => $bot_model ? $bot_model : 'llama-3.3-70b-versatile',
         'messages'   => $messages,
-        'max_tokens' => 2048,
+        'max_tokens' => 1024,
     );
 
     $data = null;
