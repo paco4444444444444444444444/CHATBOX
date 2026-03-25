@@ -104,9 +104,9 @@
       '.cb-dot:nth-child(2){animation-delay:.2s}.cb-dot:nth-child(3){animation-delay:.4s}',
       '@keyframes cb-bounce{0%,60%,100%{transform:none}30%{transform:translateY(-5px)}}',
 
-      '#cb-input{padding:10px 12px;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:flex-end;flex-shrink:0}',
-      '#cb-ta{flex:1;resize:none;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 16px;',
-        'font-family:inherit;font-size:14px;color:#1e293b;outline:none;transition:border-color .2s;max-height:100px;overflow-y:auto}',
+      '#cb-input{padding:14px 16px;border-top:1px solid #e2e8f0;display:flex;gap:10px;align-items:flex-end;flex-shrink:0}',
+      '#cb-ta{flex:1;resize:none;border:1.5px solid #e2e8f0;border-radius:14px;padding:14px 18px;',
+        'font-family:inherit;font-size:14px;color:#1e293b;outline:none;transition:border-color .2s;max-height:160px;overflow-y:auto;min-height:52px}',
       '#cb-ta:focus{border-color:' + c + '}',
       '#cb-ta:disabled{background:#f8fafc;cursor:not-allowed}',
       '#cb-ta::placeholder{color:#94a3b8}',
@@ -197,7 +197,7 @@
           '<div class="cb-typing-bub"><div class="cb-dot"></div><div class="cb-dot"></div><div class="cb-dot"></div></div>' +
         '</div>' +
         '<div id="cb-input">' +
-          '<textarea id="cb-ta" rows="1" placeholder="' + esc(cfg.placeholder) + '"></textarea>' +
+          '<textarea id="cb-ta" rows="2" placeholder="' + esc(cfg.placeholder) + '"></textarea>' +
           '<button id="cb-send" aria-label="Enviar">' + IC_SEND + '</button>' +
         '</div>' +
       '</div>';
