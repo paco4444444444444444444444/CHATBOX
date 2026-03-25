@@ -10,7 +10,7 @@ require_once __DIR__ . '/db.php';
 // Cargar keys privadas desde config.php (no está en git)
 $_cfg = dirname(__DIR__) . '/config.php';
 if (file_exists($_cfg)) require $_cfg;
-// $GEMINI_API_KEYS y $GROQ_API_KEY quedan disponibles si config.php existe
+// $GEMINI_API_KEYS queda disponible si config.php existe
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -106,13 +106,11 @@ usort($sources, function($a, $b) use ($uq) {
 });
 
 // Build knowledge block — máximo real por ventana de contexto de cada modelo
-// Groq llama-3.3-70b: 128k tokens → ~400k chars
 // Gemini Flash:       1M tokens   → ~2M chars  (ventana enorme!)
 // Claude:             200k tokens → ~700k chars
 // Ollama:             131k tokens → ~500k chars
 $knowledge       = '';
-if ($backend === 'groq')        $knowledge_limit = 24000; // Groq free: 12k TPM → ~6k tokens input
-elseif ($backend === 'gemini')  $knowledge_limit = 2000000;
+if ($backend === 'gemini')      $knowledge_limit = 2000000;
 elseif ($backend === 'claude')  $knowledge_limit = 700000;
 elseif ($backend === 'ollama')  $knowledge_limit = 500000;
 else                            $knowledge_limit = 400000;
@@ -157,38 +155,6 @@ $backend   = $bot['backend'];
 $bot_model = isset($bot['model']) ? $bot['model'] : '';
 $response_text = '';
 
-// Helper: llamar a Groq con rotación de keys (reutilizado por Gemini como fallback)
-function call_groq($system, $valid, $bot_model) {
-    global $GROQ_API_KEY;
-    // Prioridad: config.php → panel admin
-    $raw_keys = (!empty($GROQ_API_KEY) ? $GROQ_API_KEY . "\n" : '') . cb_cfg('groq_key');
-    $keys = array_values(array_filter(array_map('trim', preg_split('/[\n,]+/', $raw_keys))));
-    if (!$keys) return null;
-    $messages = array_merge([['role' => 'system', 'content' => $system]], $valid);
-    $payload = [
-        'model'      => $bot_model ? $bot_model : 'llama-3.1-8b-instant', // 131k TPM gratis
-        'messages'   => $messages,
-        'max_tokens' => 8192,
-    ];
-    foreach ($keys as $key) {
-        $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => json_encode($payload),
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Authorization: Bearer ' . $key],
-            CURLOPT_TIMEOUT        => 120,
-        ]);
-        $res  = curl_exec($ch);
-        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        $data = json_decode($res, true);
-        if ($http === 429) continue;
-        return $data;
-    }
-    return null;
-}
-
 if ($backend === 'gemini') {
     global $GEMINI_API_KEYS;
     // Prioridad: config.php → panel admin
@@ -232,25 +198,13 @@ if ($backend === 'gemini') {
         break;
     }
 
-    // Fallback automático a Groq si Gemini está agotado
     if ($data === null) {
-        $data = call_groq($system, $valid, '');
-        if ($data === null) cb_err('Gemini y Groq en rate limit. Intentalo en unos minutos.', 429);
-        $response_text = $data['choices'][0]['message']['content'] ?? '';
-        if (!$response_text) cb_err('Groq fallback respuesta vacia: ' . json_encode($data), 502);
+        cb_err('Gemini rate limit alcanzado. Intentalo en unos minutos.', 429);
     } else {
         if (isset($data['error'])) cb_err('Gemini error: ' . ($data['error']['message'] ?? json_encode($data['error'])), 502);
         $response_text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
         if (!$response_text) cb_err('Gemini respuesta vacia: ' . json_encode($data), 502);
     }
-
-} elseif ($backend === 'groq') {
-    if (!cb_cfg('groq_key')) cb_err('Groq API key not configured', 503);
-    $data = call_groq($system, $valid, $bot_model);
-    if ($data === null) cb_err('Groq rate limit alcanzado. Intentalo en unos minutos.', 429);
-    if (isset($data['error'])) cb_err('Groq error: ' . ($data['error']['message'] ?? json_encode($data['error'])), 502);
-    $response_text = $data['choices'][0]['message']['content'] ?? '';
-    if (!$response_text) cb_err('Groq respuesta vacia: ' . json_encode($data), 502);
 
 } elseif ($backend === 'claude') {
     $raw_keys = cb_cfg('claude_key');

@@ -7,4 +7,3 @@ $GEMINI_API_KEYS = [
     // Añade más keys (una por cuenta Google de aistudio.google.com)
 ];
 
-$GROQ_API_KEY = 'gsk_TU_KEY_GROQ';

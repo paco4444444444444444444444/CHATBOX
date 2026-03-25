@@ -25,7 +25,7 @@ function cb_schema(PDO $db): void {
         welcome      TEXT NOT NULL DEFAULT 'Hola, ¿en qué puedo ayudarte?',
         placeholder  TEXT NOT NULL DEFAULT 'Escribe tu pregunta...',
         color        TEXT NOT NULL DEFAULT '#2563eb',
-        backend      TEXT NOT NULL DEFAULT 'groq',
+        backend      TEXT NOT NULL DEFAULT 'gemini',
         model        TEXT NOT NULL DEFAULT '',
         created_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -56,7 +56,6 @@ function cb_schema(PDO $db): void {
 
     foreach ([
         'admin_pass'   => password_hash('admin', PASSWORD_BCRYPT, ['cost' => 10]),
-        'groq_key'     => '',
         'gemini_key'   => '',
         'claude_key'   => '',
         'ollama_url'   => 'http://localhost:11434',

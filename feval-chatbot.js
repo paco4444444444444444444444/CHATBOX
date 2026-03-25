@@ -5,7 +5,7 @@
  * INSTRUCCIONES DE INSTALACIÓN:
  * ==============================
  * 1. Sube feval-chatbot.js y ollama-proxy.php a tu servidor Joomla
- * 2. Configura ollama-proxy.php con tu backend (Ollama, Groq o Claude)
+ * 2. Configura ollama-proxy.php con tu backend (Ollama, Gemini o Claude)
  * 3. Añade en el <head> o antes de </body> de cada página:
  *
  *    OPCIÓN A — Ollama local (GRATIS, ILIMITADO):
@@ -13,13 +13,7 @@
  *    <script>window.FEVAL_CHATBOT_PROXY_URL = '/ollama-proxy.php';</script>
  *    <script src="/ruta/a/feval-chatbot.js"></script>
  *
- *    OPCIÓN B — Groq nube (GRATIS hasta 14.400 req/día, muy rápido):
- *    <script>window.FEVAL_CHATBOT_BACKEND = 'proxy';</script>
- *    <script>window.FEVAL_CHATBOT_PROXY_URL = '/ollama-proxy.php';</script>
- *    <script src="/ruta/a/feval-chatbot.js"></script>
- *    (en ollama-proxy.php pon $BACKEND = 'groq')
- *
- *    OPCIÓN C — Claude directo desde browser (requiere API key de pago):
+ *    OPCIÓN B — Claude directo desde browser (requiere API key de pago):
  *    <script>window.FEVAL_CHATBOT_BACKEND = 'claude';</script>
  *    <script>window.FEVAL_CHATBOT_API_KEY = "sk-ant-TU_KEY";</script>
  *    <script src="/ruta/a/feval-chatbot.js"></script>
@@ -36,7 +30,7 @@
   'use strict';
 
   // ─── Configuración ────────────────────────────────────────────────────────
-  // Backend: 'proxy' usa ollama-proxy.php (Ollama/Groq, GRATIS)
+  // Backend: 'proxy' usa ollama-proxy.php (Ollama/Gemini, GRATIS)
   //          'claude' llama a Anthropic directamente desde el browser (de pago)
   var BACKEND     = (typeof window !== 'undefined' && window.FEVAL_CHATBOT_BACKEND)   || 'proxy';
   var PROXY_URL   = (typeof window !== 'undefined' && window.FEVAL_CHATBOT_PROXY_URL) || '/ollama-proxy.php';

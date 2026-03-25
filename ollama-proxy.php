@@ -1,6 +1,6 @@
 <?php
 /**
- * FEVAL Chatbot — Proxy PHP para Ollama / Groq
+ * FEVAL Chatbot — Proxy PHP para Ollama / Gemini
  * =============================================
  * CONFIGURACIÓN PARA TU ENTORNO ESPECÍFICO:
  *   - VirtualBox en modo Red Puente (bridged)
@@ -51,19 +51,16 @@
  *
  * BACKENDS SOPORTADOS:
  *   'ollama' → Tu PC Windows con Ollama (GRATIS, ILIMITADO) ← RECOMENDADO
- *   'groq'   → Nube Groq (GRATIS hasta 14.400 req/día, rapidísimo, sin GPU)
  *   'claude' → Anthropic Claude (de pago)
  */
 
 // ─── CONFIGURACIÓN — EDITA SOLO ESTA SECCIÓN ─────────────────────────────────
 
 // Backend a usar
-// 'gemini_groq' → Gemini Flash principal (1M tokens) + Groq fallback (RECOMENDADO)
-// 'gemini'      → Solo Gemini Flash
-// 'groq_ollama' → Groq como principal + Ollama local como respaldo automático
-// 'groq'        → Solo Groq nube
-// 'ollama'      → Solo Ollama local
-$BACKEND = 'gemini_groq';
+// 'gemini' → Gemini Flash (1M tokens, RECOMENDADO)
+// 'ollama' → Solo Ollama local
+// 'claude' → Anthropic Claude (de pago)
+$BACKEND = 'gemini';
 
 // URL pública del sitio (la que ven los usuarios en los enlaces)
 // Cámbiala si tu dominio/túnel cambia
@@ -95,10 +92,8 @@ if (file_exists($_config_file)) {
     require $_config_file;
 } else {
     $GEMINI_API_KEYS = [];
-    $GROQ_API_KEY    = '';
 }
 $GEMINI_MODEL = 'gemini-2.0-flash'; // gemini-2.0-flash-lite, gemini-1.5-flash
-$GROQ_MODEL   = 'llama-3.3-70b-versatile';
 
 // ── Claude / Anthropic (de pago, solo si lo necesitas) ────────────────────────
 $CLAUDE_API_KEY = 'sk-ant-TU_API_KEY_AQUI';
@@ -1247,51 +1242,6 @@ if ($BACKEND === 'ollama') {
     }
 
 // ══════════════════════════════════════════════════════
-// BACKEND: GROQ (nube gratuita, muy rápido)
-// ══════════════════════════════════════════════════════
-} elseif ($BACKEND === 'groq' || $BACKEND === 'groq_ollama') {
-
-    $groq_payload = [
-        'model'       => $GROQ_MODEL,
-        'max_tokens'  => $max_tokens,
-        'temperature' => 0.1,
-        'messages'    => array_merge(
-            $system_prompt ? [['role' => 'system', 'content' => $system_prompt]] : [],
-            $clean_messages
-        )
-    ];
-
-    $result = curlPost(
-        'https://api.groq.com/openai/v1/chat/completions',
-        [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $GROQ_API_KEY
-        ],
-        $groq_payload
-    );
-
-    $groq_ok = !$result['error'] && $result['code'] === 200;
-    $data    = $groq_ok ? json_decode($result['body'], true) : null;
-    $groq_ok = $groq_ok && isset($data['choices'][0]['message']['content']);
-
-    if ($groq_ok) {
-        $reply_text = $data['choices'][0]['message']['content'];
-    } elseif ($BACKEND === 'groq_ollama') {
-        // Groq falló → intentar Ollama como respaldo
-        $reply_text = callOllama($system_prompt, $clean_messages, $max_tokens);
-        if ($reply_text === null) {
-            http_response_code(502);
-            echo json_encode(['error' => 'Groq y Ollama no disponibles. Inténtalo más tarde.']);
-            exit;
-        }
-    } else {
-        http_response_code($result['code'] ?: 502);
-        $detail = isset($data['error']['message']) ? $data['error']['message'] : $result['body'];
-        echo json_encode(['error' => 'Error de Groq: ' . $detail]);
-        exit;
-    }
-
-// ══════════════════════════════════════════════════════
 // BACKEND: CLAUDE / ANTHROPIC (de pago)
 // ══════════════════════════════════════════════════════
 } elseif ($BACKEND === 'claude') {
@@ -1334,7 +1284,7 @@ if ($BACKEND === 'ollama') {
 // ══════════════════════════════════════════════════════
 // BACKEND: GEMINI FLASH (gratis, 1M tokens contexto)
 // ══════════════════════════════════════════════════════
-} elseif ($BACKEND === 'gemini' || $BACKEND === 'gemini_groq') {
+} elseif ($BACKEND === 'gemini') {
 
     // Convertir mensajes al formato nativo de Gemini
     $gemini_contents = [];
@@ -1365,27 +1315,6 @@ if ($BACKEND === 'ollama') {
 
     if ($gemini_reply !== null) {
         $reply_text = $gemini_reply;
-    } elseif ($BACKEND === 'gemini_groq') {
-        // Fallback automático a Groq
-        $groq_payload = [
-            'model'       => $GROQ_MODEL,
-            'max_tokens'  => $max_tokens,
-            'temperature' => 0.1,
-            'messages'    => array_merge(
-                $system_prompt ? [['role' => 'system', 'content' => $system_prompt]] : [],
-                $clean_messages
-            )
-        ];
-        $result  = curlPost('https://api.groq.com/openai/v1/chat/completions',
-            ['Content-Type: application/json', 'Authorization: Bearer ' . $GROQ_API_KEY],
-            $groq_payload);
-        $gdata   = $result['error'] ? null : json_decode($result['body'], true);
-        $reply_text = $gdata['choices'][0]['message']['content'] ?? null;
-        if (!$reply_text) {
-            http_response_code(502);
-            echo json_encode(['error' => 'Gemini y Groq no disponibles. Inténtalo más tarde.']);
-            exit;
-        }
     } else {
         http_response_code(429);
         echo json_encode(['error' => 'Gemini rate limit alcanzado. Inténtalo en unos minutos.']);
