@@ -238,9 +238,10 @@
     var div = document.createElement('div');
     div.className = 'cb-m ' + (role === 'u' ? 'u' : 'a');
     var avatar = role === 'a' ? '<div class="cb-avatar">' + IC_BOT + '</div>' : '';
+    var bubbleStyle = 'padding:24px 28px;border-radius:18px;font-size:15px;line-height:1.7;word-break:break-word;';
     var bubble = isErr
       ? '<div class="cb-err">' + IC_ERR + '<div>' + fmt(text) + '</div></div>'
-      : '<div class="cb-bubble">' + fmt(text) + '</div>';
+      : '<div class="cb-bubble" style="' + bubbleStyle + '">' + fmt(text) + '</div>';
     div.innerHTML = avatar + '<div class="cb-body">' + bubble + '<div class="cb-time">' + hhmm() + '</div></div>';
     wrap.appendChild(div);
     wrap.scrollTop = wrap.scrollHeight;
