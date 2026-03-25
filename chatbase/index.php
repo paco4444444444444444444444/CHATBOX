@@ -321,7 +321,7 @@ if ($p === 'bot') {
               <select name="model" id="model-sel">
                 <?php
                 $models = [
-                  'gemini' => ['gemini-2.0-flash'=>'Gemini 2.0 Flash (recomendado)','gemini-2.0-flash-lite'=>'Gemini 2.0 Flash Lite (más rápido)','gemini-1.5-flash'=>'Gemini 1.5 Flash','gemini-1.5-pro'=>'Gemini 1.5 Pro (más potente)'],
+                  'gemini' => ['gemini-2.5-flash'=>'Gemini 2.5 Flash (recomendado)','gemini-2.5-pro'=>'Gemini 2.5 Pro (más potente)','gemini-2.0-flash'=>'Gemini 2.0 Flash','gemini-1.5-flash'=>'Gemini 1.5 Flash'],
                   'claude' => ['claude-haiku-4-5-20251001'=>'Claude Haiku (rápido)','claude-sonnet-4-6'=>'Claude Sonnet (potente, 64k respuesta)'],
                   'ollama' => [''=>'(usa el modelo de Ajustes)','llama3.2'=>'Llama 3.2','qwen2.5:7b'=>'Qwen2.5 7B','mistral'=>'Mistral'],
                 ];
