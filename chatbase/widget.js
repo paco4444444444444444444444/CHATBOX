@@ -87,7 +87,7 @@
       '.cb-bubble p{margin:0 0 8px}.cb-bubble p:last-child{margin:0}',
       '.cb-bubble ul{margin:8px 0 8px 20px}.cb-bubble ol{margin:8px 0 8px 22px}',
       '.cb-bubble li{padding:2px 0}',
-      '.cb-m.a .cb-bubble{background:#f8fafc;color:#1e293b;border-bottom-left-radius:4px;border:1px solid #e2e8f0}',
+      '.cb-m.a .cb-bubble{background:#e8edf5;color:#1e293b;border-bottom-left-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1)}',
       '.cb-m.u .cb-bubble{background:' + c + ';color:#fff;border-bottom-right-radius:4px}',
       '.cb-bubble a{color:' + c + ';text-decoration:underline}',
       '.cb-m.u .cb-bubble a{color:rgba(255,255,255,.9)}',
