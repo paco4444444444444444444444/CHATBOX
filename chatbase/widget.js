@@ -84,7 +84,7 @@
       '.cb-body{max-width:100%;display:flex;flex-direction:column;gap:4px}',
       '.cb-m.a .cb-body{width:100%}',
       '.cb-m.u .cb-body{align-items:flex-end}',
-      '.cb-bubble{padding:24px 28px;border-radius:18px;font-size:15px;line-height:1.7;word-break:break-word}',
+      '.cb-bubble{padding:24px 28px !important;border-radius:18px !important;font-size:15px !important;line-height:1.7 !important;word-break:break-word !important}',
       '.cb-bubble p{margin:0 0 10px}.cb-bubble p:last-child{margin:0}',
       '.cb-bubble ul{margin:10px 0 10px 22px}.cb-bubble ol{margin:10px 0 10px 24px}',
       '.cb-bubble li{padding:4px 0}',
