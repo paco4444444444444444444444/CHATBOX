@@ -133,7 +133,8 @@ foreach ($sources as $src_item) {
 // 6. Build system prompt (AFTER knowledge is ready)
 $system = "Eres un asistente virtual de IA llamado \"{$bot['name']}\". "
     . ($bot['description'] ? "Descripcion: {$bot['description']}. " : '')
-    . "Responde siempre de forma clara, concisa y util.\n";
+    . "Responde siempre de forma clara, concisa y util.\n"
+    . "FECHA ACTUAL: " . date('d/m/Y') . ". Usa esta fecha para determinar si las preinscripciones o fechas de inicio de cursos ya han pasado.\n";
 
 if ($bot['instructions']) {
     $system .= "\n=== INSTRUCCIONES ===\n{$bot['instructions']}\n";
