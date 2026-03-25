@@ -49,7 +49,7 @@
       '#cb-btn.open .i-open{display:none}#cb-btn.open .i-close{display:block}',
 
       '#cb-win{position:fixed;bottom:96px;right:24px;z-index:2147483646;',
-        'width:520px;height:600px;background:#fff;border-radius:16px;',
+        'width:520px;height:500px;background:#fff;border-radius:16px;',
         'box-shadow:0 8px 40px rgba(0,0,0,0.18);',
         'display:flex;flex-direction:column;overflow:hidden;',
         'opacity:0;transform:translateY(16px) scale(0.96);pointer-events:none;',
@@ -72,7 +72,7 @@
       '#cb-clear:hover{background:rgba(255,255,255,.25)}',
       '#cb-clear svg{width:14px;height:14px;fill:#fff}',
 
-      '#cb-msgs{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}',
+      '#cb-msgs{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;justify-content:flex-end}',
       '#cb-msgs::-webkit-scrollbar{width:4px}',
       '#cb-msgs::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}',
 
