@@ -72,7 +72,8 @@
       '#cb-clear:hover{background:rgba(255,255,255,.25)}',
       '#cb-clear svg{width:14px;height:14px;fill:#fff}',
 
-      '#cb-msgs{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;justify-content:flex-end}',
+      '#cb-msgs{flex:1;overflow-y:auto;padding:16px 14px;scroll-behavior:smooth}',
+      '#cb-msgs-inner{display:flex;flex-direction:column;gap:10px;min-height:100%;justify-content:flex-end}',
       '#cb-msgs::-webkit-scrollbar{width:4px}',
       '#cb-msgs::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}',
 
@@ -193,7 +194,7 @@
           '</div>' +
           '<button id="cb-clear" title="Nueva conversación">' + IC_TRASH + '</button>' +
         '</div>' +
-        '<div id="cb-msgs"></div>' +
+        '<div id="cb-msgs"><div id="cb-msgs-inner"></div></div>' +
         '<div id="cb-typing"><div class="cb-avatar">' + IC_BOT + '</div>' +
           '<div class="cb-typing-bub"><div class="cb-dot"></div><div class="cb-dot"></div><div class="cb-dot"></div></div>' +
         '</div>' +
@@ -235,6 +236,7 @@
 
   function addMsg(role, text, isErr) {
     var wrap = document.getElementById('cb-msgs');
+    var inner = document.getElementById('cb-msgs-inner');
     var div = document.createElement('div');
     div.className = 'cb-m ' + (role === 'u' ? 'u' : 'a');
     var avatar = role === 'a' ? '<div class="cb-avatar">' + IC_BOT + '</div>' : '';
@@ -243,14 +245,14 @@
       ? '<div class="cb-err">' + IC_ERR + '<div>' + fmt(text) + '</div></div>'
       : '<div class="cb-bubble" style="' + bubbleStyle + '">' + fmt(text) + '</div>';
     div.innerHTML = avatar + '<div class="cb-body">' + bubble + '<div class="cb-time">' + hhmm() + '</div></div>';
-    wrap.appendChild(div);
+    inner.appendChild(div);
     wrap.scrollTop = wrap.scrollHeight;
     return div;
   }
 
   function clearChat() {
     history = [];
-    document.getElementById('cb-msgs').innerHTML = '';
+    document.getElementById('cb-msgs-inner').innerHTML = '';
     initialized = false;
     addMsg('a', cfg.welcome);
     initialized = true;
