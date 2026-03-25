@@ -180,6 +180,8 @@ if ($backend === 'gemini') {
     ];
 
     $data = null;
+    $last_http = 0;
+    $last_curl_err = '';
     foreach ($keys as $key) {
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . urlencode($model) . ':generateContent?key=' . urlencode($key);
         $ch  = curl_init($url);
@@ -191,15 +193,18 @@ if ($backend === 'gemini') {
             CURLOPT_TIMEOUT        => 120,
         ]);
         $res  = curl_exec($ch);
-        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $last_http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $last_curl_err = curl_error($ch);
         curl_close($ch);
+        if ($res === false || $last_http === 0) continue; // fallo de red → probar siguiente key
         $data = json_decode($res, true);
-        if ($http === 429) { $data = null; continue; }
-        break;
+        if ($last_http === 429) { $data = null; continue; } // rate limit → probar siguiente key
+        break; // cualquier otra respuesta (200, 400, 403...) → usar esta
     }
 
     if ($data === null) {
-        cb_err('Gemini rate limit alcanzado. Intentalo en unos minutos.', 429);
+        if ($last_curl_err) cb_err('Gemini no disponible (red): ' . $last_curl_err, 502);
+        cb_err('Gemini rate limit alcanzado en todas las keys. Intentalo en unos minutos.', 429);
     } else {
         if (isset($data['error'])) cb_err('Gemini error: ' . ($data['error']['message'] ?? json_encode($data['error'])), 502);
         $response_text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
