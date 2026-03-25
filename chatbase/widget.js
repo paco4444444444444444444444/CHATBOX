@@ -49,7 +49,7 @@
       '#cb-btn.open .i-open{display:none}#cb-btn.open .i-close{display:block}',
 
       '#cb-win{position:fixed;bottom:96px;right:24px;z-index:2147483646;',
-        'width:420px;height:560px;background:#fff;border-radius:16px;',
+        'width:520px;height:600px;background:#fff;border-radius:16px;',
         'box-shadow:0 8px 40px rgba(0,0,0,0.18);',
         'display:flex;flex-direction:column;overflow:hidden;',
         'opacity:0;transform:translateY(16px) scale(0.96);pointer-events:none;',
