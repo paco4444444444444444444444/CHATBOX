@@ -72,7 +72,7 @@
       '#cb-clear:hover{background:rgba(255,255,255,.25)}',
       '#cb-clear svg{width:14px;height:14px;fill:#fff}',
 
-      '#cb-msgs{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}',
+      '#cb-msgs{flex:1;overflow-y:auto;padding:12px 12px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}',
       '#cb-msgs::-webkit-scrollbar{width:4px}',
       '#cb-msgs::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}',
 
@@ -83,7 +83,7 @@
       '.cb-avatar svg{width:16px;height:16px;fill:#fff}',
       '.cb-body{max-width:88%;display:flex;flex-direction:column;gap:3px}',
       '.cb-m.u .cb-body{align-items:flex-end}',
-      '.cb-bubble{padding:16px 20px;border-radius:16px;font-size:14px;line-height:1.7;word-break:break-word}',
+      '.cb-bubble{padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.5;word-break:break-word}',
       '.cb-bubble p{margin:0 0 8px}.cb-bubble p:last-child{margin:0}',
       '.cb-bubble ul{margin:8px 0 8px 20px}.cb-bubble ol{margin:8px 0 8px 22px}',
       '.cb-bubble li{padding:2px 0}',
