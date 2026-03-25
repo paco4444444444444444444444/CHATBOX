@@ -198,12 +198,13 @@ if ($backend === 'gemini') {
         curl_close($ch);
         if ($res === false || $last_http === 0) continue; // fallo de red → probar siguiente key
         $data = json_decode($res, true);
-        if ($last_http === 429) { $data = null; continue; } // rate limit → probar siguiente key
-        break; // cualquier otra respuesta (200, 400, 403...) → usar esta
+        if (in_array($last_http, [400, 401, 403, 429])) { $data = null; continue; } // key inválida/expirada/rate limit → probar siguiente key
+        break; // 200 u otro → usar esta respuesta
     }
 
     if ($data === null) {
         if ($last_curl_err) cb_err('Gemini no disponible (red): ' . $last_curl_err, 502);
+        if ($last_http === 400 || $last_http === 401 || $last_http === 403) cb_err('Gemini: todas las API keys son invalidas o han expirado. Renueva las keys en aistudio.google.com', 503);
         cb_err('Gemini rate limit alcanzado en todas las keys. Intentalo en unos minutos.', 429);
     } else {
         if (isset($data['error'])) cb_err('Gemini error: ' . ($data['error']['message'] ?? json_encode($data['error'])), 502);
