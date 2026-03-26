@@ -49,7 +49,7 @@
       '#cb-btn.open .i-open{display:none}#cb-btn.open .i-close{display:block}',
 
       '#cb-win{position:fixed;bottom:96px;right:24px;z-index:2147483646;',
-        'width:520px;height:500px;background:#fff;border-radius:16px;',
+        'width:520px;height:650px;background:#fff;border-radius:16px;',
         'box-shadow:0 8px 40px rgba(0,0,0,0.18);',
         'display:flex;flex-direction:column;overflow:hidden;',
         'opacity:0;transform:translateY(16px) scale(0.96);pointer-events:none;',
@@ -67,10 +67,11 @@
       '#cb-status-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:cb-blink 2s infinite}',
       '@keyframes cb-blink{0%,100%{opacity:1}50%{opacity:.4}}',
       '#cb-status-txt{color:rgba(255,255,255,.75);font-size:11px}',
-      '#cb-clear{background:rgba(255,255,255,.15);border:none;width:28px;height:28px;border-radius:7px;',
+      '#cb-clear,#cb-close-btn{background:rgba(255,255,255,.15);border:none;width:28px;height:28px;border-radius:7px;',
         'cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}',
-      '#cb-clear:hover{background:rgba(255,255,255,.25)}',
-      '#cb-clear svg{width:14px;height:14px;fill:#fff}',
+      '#cb-clear:hover,#cb-close-btn:hover{background:rgba(255,255,255,.25)}',
+      '#cb-clear svg,#cb-close-btn svg{width:14px;height:14px;fill:#fff}',
+      '#cb-close-btn{display:none}',
 
       '#cb-msgs{flex:1;overflow-y:auto;padding:16px 14px;scroll-behavior:smooth}',
       '#cb-msgs-inner{display:flex;flex-direction:column;gap:10px;min-height:100%;justify-content:flex-end}',
@@ -85,7 +86,7 @@
       '.cb-body{max-width:100%;display:flex;flex-direction:column;gap:4px}',
       '.cb-m.a .cb-body{width:100%}',
       '.cb-m.u .cb-body{align-items:flex-end}',
-      '.cb-bubble{padding:24px 28px !important;border-radius:18px !important;font-size:15px !important;line-height:1.7 !important;word-break:break-word !important}',
+      '.cb-bubble{padding:14px 18px !important;border-radius:18px !important;font-size:13px !important;line-height:1.6 !important;word-break:break-word !important}',
       '.cb-bubble p{margin:0 0 10px}.cb-bubble p:last-child{margin:0}',
       '.cb-bubble ul{margin:10px 0 10px 22px}.cb-bubble ol{margin:10px 0 10px 24px}',
       '.cb-bubble li{padding:4px 0}',
@@ -124,6 +125,7 @@
         '#cb-btn.open{display:none}',
         '#cb-btn{bottom:16px;right:16px}',
         '#cb-ta{font-size:16px}',
+        '#cb-close-btn{display:flex}',
       '}',
       '@media(max-width:380px){#cb-win{height:100dvh;border-radius:0;padding-top:env(safe-area-inset-top)}}',
     ].join('');
@@ -193,6 +195,7 @@
             '<div id="cb-head-status"><div id="cb-status-dot"></div><span id="cb-status-txt">En línea</span></div>' +
           '</div>' +
           '<button id="cb-clear" title="Nueva conversación">' + IC_TRASH + '</button>' +
+          '<button id="cb-close-btn" title="Cerrar">' + IC_CLOSE + '</button>' +
         '</div>' +
         '<div id="cb-msgs"><div id="cb-msgs-inner"></div></div>' +
         '<div id="cb-typing"><div class="cb-avatar">' + IC_BOT + '</div>' +
@@ -207,6 +210,7 @@
 
     document.getElementById('cb-btn').addEventListener('click', toggle);
     document.getElementById('cb-clear').addEventListener('click', clearChat);
+    document.getElementById('cb-close-btn').addEventListener('click', toggle);
     document.getElementById('cb-send').addEventListener('click', function() { doSend(); });
 
     var ta = document.getElementById('cb-ta');
@@ -240,7 +244,7 @@
     var div = document.createElement('div');
     div.className = 'cb-m ' + (role === 'u' ? 'u' : 'a');
     var avatar = role === 'a' ? '<div class="cb-avatar">' + IC_BOT + '</div>' : '';
-    var bubbleStyle = 'padding:24px 28px;border-radius:18px;font-size:15px;line-height:1.7;word-break:break-word;';
+    var bubbleStyle = 'padding:14px 18px;border-radius:18px;font-size:13px;line-height:1.6;word-break:break-word;';
     var bubble = isErr
       ? '<div class="cb-err">' + IC_ERR + '<div>' + fmt(text) + '</div></div>'
       : '<div class="cb-bubble" style="' + bubbleStyle + '">' + fmt(text) + '</div>';
