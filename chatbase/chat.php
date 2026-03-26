@@ -164,7 +164,7 @@ if ($backend === 'gemini') {
     $keys     = array_values(array_unique(array_merge($cfg_keys, $db_keys)));
     if (!$keys) cb_err('Gemini API key not configured', 503);
 
-    $model = $bot_model ? $bot_model : 'gemini-2.5-flash';
+    $model = $bot_model ? $bot_model : 'gemini-3.1-flash-lite-preview';
 
     // Convertir historial al formato nativo de Gemini
     $contents = [];
