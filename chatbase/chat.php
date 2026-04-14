@@ -131,9 +131,18 @@ foreach ($sources as $src_item) {
 }
 
 // 6. Build system prompt (AFTER knowledge is ready)
+$lang_map = [
+    'es'=>'español','en'=>'English','fr'=>'français','de'=>'Deutsch',
+    'it'=>'italiano','pt'=>'português','ca'=>'català','eu'=>'euskera','gl'=>'galego',
+];
+$bot_lang      = isset($bot['language']) && $bot['language'] ? $bot['language'] : 'es';
+$lang_name     = isset($lang_map[$bot_lang]) ? $lang_map[$bot_lang] : 'español';
+$lang_rule     = "Responde SIEMPRE en {$lang_name}, independientemente del idioma en que te escriba el usuario.\n";
+
 $system = "Eres un asistente virtual de IA llamado \"{$bot['name']}\". "
     . ($bot['description'] ? "Descripcion: {$bot['description']}. " : '')
     . "Responde siempre de forma clara, concisa y util.\n"
+    . $lang_rule
     . "FECHA ACTUAL: " . date('d/m/Y') . ". Usa esta fecha para determinar si las preinscripciones o fechas de inicio de cursos ya han pasado.\n";
 
 if ($bot['instructions']) {

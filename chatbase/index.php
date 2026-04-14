@@ -24,23 +24,24 @@ if (!empty($_SESSION['cb_auth'])) {
     // Create bot
     if (($_POST['action'] ?? '') === 'create_bot') {
         $id = cb_id();
-        cb_db()->prepare("INSERT INTO bots (id,name,description,instructions,welcome,placeholder,color,backend,model) VALUES (?,?,?,?,?,?,?,?,?)")
+        cb_db()->prepare("INSERT INTO bots (id,name,description,instructions,welcome,placeholder,color,backend,model,language) VALUES (?,?,?,?,?,?,?,?,?,?)")
             ->execute([$id, trim($_POST['name']), trim($_POST['description'] ?? ''),
                 trim($_POST['instructions'] ?? ''), trim($_POST['welcome'] ?? 'Hola, ¿en qué puedo ayudarte?'),
                 trim($_POST['placeholder'] ?? 'Escribe tu pregunta...'),
                 $_POST['color'] ?? '#2563eb', $_POST['backend'] ?? 'gemini',
-                $_POST['model'] ?? '']);
+                $_POST['model'] ?? '', $_POST['language'] ?? 'es']);
         header('Location: ?p=bot&id=' . $id); exit;
     }
 
     // Update bot
     if (($_POST['action'] ?? '') === 'update_bot') {
         $id = $_POST['bot_id'] ?? '';
-        cb_db()->prepare("UPDATE bots SET name=?,description=?,instructions=?,welcome=?,placeholder=?,color=?,backend=?,model=? WHERE id=?")
+        cb_db()->prepare("UPDATE bots SET name=?,description=?,instructions=?,welcome=?,placeholder=?,color=?,backend=?,model=?,language=? WHERE id=?")
             ->execute([trim($_POST['name']), trim($_POST['description'] ?? ''),
                 trim($_POST['instructions'] ?? ''), trim($_POST['welcome'] ?? ''),
                 trim($_POST['placeholder'] ?? ''), $_POST['color'] ?? '#2563eb',
-                $_POST['backend'] ?? 'gemini', $_POST['model'] ?? '', $id]);
+                $_POST['backend'] ?? 'gemini', $_POST['model'] ?? '',
+                $_POST['language'] ?? 'es', $id]);
         header('Location: ?p=bot&id=' . $id . '&saved=1'); exit;
     }
 
@@ -321,7 +322,21 @@ if ($p === 'bot') {
               <select name="model" id="model-sel">
                 <?php
                 $models = [
-                  'gemini' => ['gemini-3.1-flash-lite-preview'=>'Gemini 3.1 Flash Lite (recomendado · 500 RPD)','gemini-2.5-flash'=>'Gemini 2.5 Flash (20 RPD)','gemini-2.5-pro'=>'Gemini 2.5 Pro (más potente)','gemini-2.0-flash'=>'Gemini 2.0 Flash','gemini-1.5-flash'=>'Gemini 1.5 Flash'],
+                  'gemini' => [
+                    'gemini-3.1-flash-lite-preview' => 'Gemini 3.1 Flash Lite ★ recomendado · 15 RPM · 500 RPD',
+                    'gemini-3-flash'                => 'Gemini 3 Flash · 5 RPM · 20 RPD',
+                    'gemini-2.5-flash-lite'         => 'Gemini 2.5 Flash Lite · 10 RPM · 20 RPD',
+                    'gemini-2.5-flash'              => 'Gemini 2.5 Flash · 5 RPM · 20 RPD',
+                    'gemini-3.1-pro'                => 'Gemini 3.1 Pro · (plan de pago)',
+                    'gemini-2.5-pro'                => 'Gemini 2.5 Pro · (plan de pago)',
+                    'gemini-2.0-flash'              => 'Gemini 2 Flash · (plan de pago)',
+                    'gemini-2.0-flash-lite'         => 'Gemini 2 Flash Lite · (plan de pago)',
+                    'gemma-3-27b-it'                => 'Gemma 3 27B · 30 RPM · 14.400 RPD',
+                    'gemma-3-12b-it'                => 'Gemma 3 12B · 30 RPM · 14.400 RPD',
+                    'gemma-3-4b-it'                 => 'Gemma 3 4B · 30 RPM · 14.400 RPD',
+                    'gemma-3-2b-it'                 => 'Gemma 3 2B · 30 RPM · 14.400 RPD',
+                    'gemma-3-1b-it'                 => 'Gemma 3 1B · 30 RPM · 14.400 RPD',
+                  ],
                   'claude' => ['claude-haiku-4-5-20251001'=>'Claude Haiku (rápido)','claude-sonnet-4-6'=>'Claude Sonnet (potente, 64k respuesta)'],
                   'ollama' => [''=>'(usa el modelo de Ajustes)','llama3.2'=>'Llama 3.2','qwen2.5:7b'=>'Qwen2.5 7B','mistral'=>'Mistral'],
                 ];
@@ -330,6 +345,28 @@ if ($p === 'bot') {
                 foreach ($models[$cur_back] as $mv => $ml):
                 ?>
                   <option value="<?= h($mv) ?>" <?= $cur_model===$mv?'selected':'' ?>><?= h($ml) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="field">
+              <label>Idioma de respuesta</label>
+              <select name="language" id="language-sel">
+                <?php
+                $languages = [
+                  'es' => 'Español',
+                  'en' => 'English',
+                  'fr' => 'Français',
+                  'de' => 'Deutsch',
+                  'it' => 'Italiano',
+                  'pt' => 'Português',
+                  'ca' => 'Català',
+                  'eu' => 'Euskera',
+                  'gl' => 'Galego',
+                ];
+                $cur_lang = $bot['language'] ?? 'es';
+                foreach ($languages as $lv => $ll):
+                ?>
+                  <option value="<?= h($lv) ?>" <?= $cur_lang===$lv?'selected':'' ?>><?= h($ll) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
@@ -396,6 +433,7 @@ function updateModels(backend) {
   var opts = MODELS[backend] || {};
   Object.entries(opts).forEach(function([v,l]){ var o=document.createElement('option'); o.value=v; o.textContent=l; sel.appendChild(o); });
 }
+
 var TEMPLATES = {
   general: "### Business Context\n[Describe tu empresa o servicio aquí]\n\n### Role\n- Primary Function: Eres un asistente de IA que ayuda a los usuarios con sus consultas. Ofrece respuestas claras, amables y eficientes.\n- Si una pregunta no está clara, pide aclaraciones.\n- Finaliza siempre con una nota positiva.\n\n### Constraints\n1. No Divulgar Datos: Nunca menciones explícitamente que tienes acceso a datos de entrenamiento.\n2. Mantener el Foco: Si el usuario intenta desviar la conversación, redirige educadamente.\n3. Uso Exclusivo de los Datos: Responde solo basándote en la información proporcionada.",
   support: "### Business Context\n[Nombre empresa] es [descripción del negocio].\n\n### Role\n- Eres el agente de soporte al cliente de [empresa].\n- Tu objetivo es resolver dudas, problemas técnicos e incidencias de forma rápida y empática.\n- Si no puedes resolver el problema, escala al equipo humano indicando: soporte@empresa.com\n\n### Constraints\n1. No inventes información sobre productos o políticas.\n2. Si no sabes la respuesta, dilo claramente y proporciona el contacto de soporte.\n3. Mantén siempre un tono profesional y empático.",
@@ -718,10 +756,23 @@ if ($p === 'new') {
             <div class="field">
               <label>Backend LLM</label>
               <select name="backend">
-                <option value="gemini">Gemini Flash (1M tokens, gratis)</option>
-                <option value="groq">Groq (llama-3.3-70b, gratis)</option>
+                <option value="gemini">Gemini (gratis con API key)</option>
                 <option value="claude">Claude (Anthropic, de pago)</option>
                 <option value="ollama">Ollama (local, gratis)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Idioma de respuesta</label>
+              <select name="language">
+                <option value="es">Español</option>
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="it">Italiano</option>
+                <option value="pt">Português</option>
+                <option value="ca">Català</option>
+                <option value="eu">Euskera</option>
+                <option value="gl">Galego</option>
               </select>
             </div>
           </div>

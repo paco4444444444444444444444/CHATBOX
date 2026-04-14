@@ -51,8 +51,9 @@ function cb_schema(PDO $db): void {
         v TEXT NOT NULL DEFAULT ''
     );
     ");
-    // Migration: add model column if missing (for existing DBs)
+    // Migrations for existing DBs
     try { $db->exec("ALTER TABLE bots ADD COLUMN model TEXT NOT NULL DEFAULT ''"); } catch (\Exception $e) {}
+    try { $db->exec("ALTER TABLE bots ADD COLUMN language TEXT NOT NULL DEFAULT 'es'"); } catch (\Exception $e) {}
 
     foreach ([
         'admin_pass'   => password_hash('admin', PASSWORD_BCRYPT, ['cost' => 10]),
